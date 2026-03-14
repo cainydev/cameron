@@ -36,12 +36,12 @@ it('has many pending approvals', function () {
     expect($task->pendingApprovals)->toHaveCount(2);
 });
 
-it('has one resource lock', function () {
+it('has resource locks', function () {
     $task = AgentTask::factory()->create();
 
     ResourceLock::factory()->create(['task_id' => $task->id]);
 
-    expect($task->resourceLock)->toBeInstanceOf(ResourceLock::class);
+    expect($task->resourceLocks->first())->toBeInstanceOf(ResourceLock::class);
 });
 
 it('uses factory states for status transitions', function () {

@@ -51,9 +51,13 @@ class GoogleAuthController extends Controller
 
         $client->setAccessToken($token);
 
-        auth()->user()->update([
-            'google_refresh_token' => $client->getRefreshToken(),
-        ]);
+        $refreshToken = $client->getRefreshToken();
+
+        if ($refreshToken) {
+            auth()->user()->update([
+                'google_refresh_token' => $refreshToken,
+            ]);
+        }
 
         return redirect()->route('shop.edit')
             ->with('status', 'google-connected');

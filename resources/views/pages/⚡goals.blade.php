@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AgentGoal;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
@@ -10,6 +11,7 @@ new class extends Component
     public function goals()
     {
         return AgentGoal::query()
+            ->whereHas('shop', fn ($q) => $q->where('user_id', Auth::id()))
             ->withCount('tasks')
             ->latest()
             ->get();

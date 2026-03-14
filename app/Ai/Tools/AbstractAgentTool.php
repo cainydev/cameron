@@ -112,7 +112,7 @@ abstract class AbstractAgentTool implements Tool
     {
         $taskId = $this->resolveActiveTaskId();
 
-        PendingApproval::query()->create([
+        $approval = PendingApproval::query()->create([
             'task_id' => $taskId,
             'tool_class' => static::class,
             'payload' => $request->toArray(),

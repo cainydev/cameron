@@ -21,6 +21,11 @@ class RejectTaskAction
         $this->approval->update(['status' => ApprovalStatus::Rejected]);
 
         $task = $this->approval->task;
+
+        if (! $task) {
+            return;
+        }
+
         $task->update(['status' => AgentTaskStatus::Running]);
 
         $injectMessage = 'The action was REJECTED.';

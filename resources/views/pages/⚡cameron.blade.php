@@ -79,7 +79,7 @@ new class extends Component
             foreach ($stream as $event) {
                 if ($event->text ?? null) {
                     $this->streamingResponse .= $event->text;
-                    $this->stream(content: $this->streamingResponse, to: 'streaming-response');
+                    $this->stream(content: $this->streamingResponse, name: 'streaming-response');
                 }
             }
 
@@ -108,7 +108,7 @@ new class extends Component
 };
 ?>
 
-<div class="flex flex-col h-[calc(100vh-0px)]">
+<div class="flex flex-col grow min-h-0 overflow-hidden">
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 px-6 py-3">
         <div class="flex items-center gap-3">
@@ -134,36 +134,118 @@ new class extends Component
         class="flex flex-col flex-1 min-h-0"
         x-data="{
             thinking: false,
+            streaming: false,
             optimisticMessage: '',
+            toolModal: { open: false, name: '', arguments: '', result: '' },
+            _userScrolled: false,
+            _programmaticScroll: false,
+
+            lastVisibleMessage() {
+                const all = this.$refs.messages.querySelectorAll('[data-role]');
+                let last = null;
+                for (const el of all) {
+                    if (el.offsetParent !== null || el.style.display !== 'none') {
+                        last = el;
+                    }
+                }
+                return last;
+            },
+
+            scrollToMessage(el, behavior = 'smooth') {
+                if (!el) return;
+                const scroller = this.$refs.scroller;
+                const offset = el.offsetTop - this.$refs.messages.offsetTop;
+                this._programmaticScroll = true;
+                scroller.scrollTo({ top: Math.max(0, offset), behavior });
+                if (behavior === 'instant') {
+                    this._programmaticScroll = false;
+                } else {
+                    setTimeout(() => { this._programmaticScroll = false; }, 500);
+                }
+            },
+
+            scrollToLast(behavior = 'smooth') {
+                this._userScrolled = false;
+                this.scrollToMessage(this.lastVisibleMessage(), behavior);
+            },
+
+            handleScroll() {
+                if (this._programmaticScroll) return;
+                if (this.streaming || this.thinking) {
+                    this._userScrolled = true;
+                }
+            },
+
+            followStream() {
+                if (this._userScrolled) return;
+                const s = this.$refs.scroller;
+                const streamEl = this.$refs.streamingBubble;
+                if (!streamEl) return;
+                const offset = streamEl.offsetTop - this.$refs.messages.offsetTop;
+                const streamBottom = offset + streamEl.offsetHeight;
+                const viewBottom = s.scrollTop + s.clientHeight;
+                if (streamBottom > viewBottom) {
+                    this._programmaticScroll = true;
+                    s.scrollTop = streamBottom - s.clientHeight;
+                    setTimeout(() => { this._programmaticScroll = false; }, 50);
+                }
+            },
+
             submit() {
                 const text = $wire.prompt.trim();
                 if (!text) return;
                 this.optimisticMessage = text;
                 this.thinking = true;
+                this.streaming = false;
+                this._userScrolled = false;
                 $wire.prompt = '';
                 const ta = this.$el.querySelector('textarea');
                 if (ta) ta.value = '';
-                this.$nextTick(() => this.scrollToBottom());
                 $wire.sendMessage(text);
+                this.$nextTick(() => this.scrollToLast());
             },
+
             done() {
                 this.optimisticMessage = '';
                 this.thinking = false;
-                this.$nextTick(() => this.scrollToBottom());
+                this.streaming = false;
+                this._userScrolled = false;
+                this.$nextTick(() => {
+                    requestAnimationFrame(() => this.scrollToLast());
+                });
             },
-            scrollToBottom() {
-                const el = this.$refs.scroller;
-                if (el) el.scrollTop = el.scrollHeight;
+
+            openToolModal(name, args, result) {
+                this.toolModal = { open: true, name, arguments: args, result };
             },
         }"
         x-on:message-done.window="done()"
+        x-init="
+            $refs.scroller.addEventListener('scroll', () => handleScroll(), { passive: true });
+
+            const target = $el.querySelector('[wire\\:stream=streaming-response]');
+            if (target) {
+                new MutationObserver(() => {
+                    if (target.textContent.trim()) {
+                        streaming = true;
+                        thinking = false;
+                        followStream();
+                    }
+                }).observe(target, { childList: true, subtree: true, characterData: true });
+            }
+
+            /* Scroll to the last message on initial page load, after Livewire has rendered */
+            requestAnimationFrame(() => {
+                scrollToLast('instant');
+            });
+        "
     >
         <!-- Scrollable messages -->
         <div class="flex-1 overflow-y-auto py-8" x-ref="scroller">
-            <div class="mx-auto w-full max-w-2xl px-4 space-y-6">
+            <div class="mx-auto w-full max-w-2xl px-4 space-y-8" x-ref="messages">
                 @forelse($this->chatMessages as $message)
                     @if($message->role === 'user')
-                        <div class="flex justify-end">
+                        <div class="flex justify-end" data-role="user">
                             <div class="max-w-[75%] bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-tr-sm px-4 py-3">
                                 <x-markdown class="prose prose-base prose-zinc dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{{ $message->content }}</x-markdown>
                                 <flux:text class="text-xs text-zinc-400 dark:text-zinc-500 mt-2 block text-right">
@@ -172,16 +254,34 @@ new class extends Component
                             </div>
                         </div>
                     @else
-                        <div class="flex items-start gap-3">
+                        <div class="flex items-start gap-3" data-role="assistant">
                             <img src="{{ Vite::asset('resources/images/cameron_sm.png') }}" alt="Cameron" class="size-7 rounded-full shrink-0 mt-0.5">
                             <div class="flex-1 min-w-0">
                                 @if($message->tool_calls)
                                     <div class="flex flex-wrap gap-1.5 mb-2">
                                         @foreach($message->tool_calls as $call)
-                                            <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900">
+                                            @php
+                                                $callName = $call['name'] ?? '';
+                                                $callArgs = json_encode($call['arguments'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+                                                // Find matching result
+                                                $resultData = collect($message->tool_results ?? [])
+                                                    ->firstWhere('name', $callName);
+                                                $resultJson = $resultData
+                                                    ? json_encode($resultData['result'] ?? null, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+                                                    : '';
+                                            @endphp
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer"
+                                                x-on:click="openToolModal(
+                                                    {{ Js::from($callName) }},
+                                                    {{ Js::from($callArgs) }},
+                                                    {{ Js::from($resultJson) }}
+                                                )"
+                                            >
                                                 <flux:icon name="sparkles" variant="micro" class="size-3 shrink-0" />
-                                                {{ $call['name'] }}
-                                            </span>
+                                                {{ $callName }}
+                                            </button>
                                         @endforeach
                                     </div>
                                 @endif
@@ -204,15 +304,15 @@ new class extends Component
 
                 {{-- Optimistic user bubble --}}
                 <template x-if="optimisticMessage">
-                    <div class="flex justify-end">
+                    <div class="flex justify-end" data-role="user">
                         <div class="max-w-[75%] bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-tr-sm px-4 py-3">
                             <p class="text-base whitespace-pre-wrap" x-text="optimisticMessage"></p>
                         </div>
                     </div>
                 </template>
 
-                {{-- Thinking dots --}}
-                <template x-if="thinking">
+                {{-- Thinking dots — hidden once streaming starts --}}
+                <template x-if="thinking && !streaming">
                     <div class="flex items-start gap-3">
                         <img src="{{ Vite::asset('resources/images/cameron_sm.png') }}" alt="Cameron" class="size-7 rounded-full shrink-0 mt-0.5">
                         <div class="flex items-center gap-1 h-8">
@@ -223,17 +323,22 @@ new class extends Component
                     </div>
                 </template>
 
-                {{-- Streaming response — replaces dots once tokens arrive --}}
-                @if($isProcessing && $streamingResponse)
-                    <div class="flex items-start gap-3">
-                        <img src="{{ Vite::asset('resources/images/cameron_sm.png') }}" alt="Cameron" class="size-7 rounded-full shrink-0 mt-0.5">
-                        <div class="flex-1 min-w-0">
-                            <div class="prose prose-base prose-zinc dark:prose-invert max-w-none" wire:stream="streaming-response">
-                                {!! app(\Spatie\LaravelMarkdown\MarkdownRenderer::class)->toHtml($streamingResponse) !!}
-                            </div>
-                        </div>
+                {{-- Streaming response — always in DOM so wire:stream can target it --}}
+                <div
+                    class="flex items-start gap-3"
+                    x-show="streaming"
+                    x-cloak
+                    x-ref="streamingBubble"
+                    data-role="assistant"
+                >
+                    <img src="{{ Vite::asset('resources/images/cameron_sm.png') }}" alt="Cameron" class="size-7 rounded-full shrink-0 mt-0.5">
+                    <div class="flex-1 min-w-0">
+                        <div class="prose prose-base prose-zinc dark:prose-invert max-w-none" wire:stream="streaming-response"></div>
                     </div>
-                @endif
+                </div>
+
+                {{-- Spacer: ensures the last message can always scroll to the top of the viewport --}}
+                <div aria-hidden="true" class="min-h-[calc(100vh-16rem)] shrink-0 pointer-events-none"></div>
             </div>
         </div>
 
@@ -282,6 +387,41 @@ new class extends Component
                         />
                     </x-slot>
                 </flux:composer>
+            </div>
+        </div>
+
+        <!-- Tool call detail modal -->
+        <div
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            x-show="toolModal.open"
+            x-cloak
+            x-on:keydown.escape.window="toolModal.open = false"
+            x-on:click.self="toolModal.open = false"
+        >
+            <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+                <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                    <div class="flex items-center gap-2">
+                        <flux:icon name="sparkles" variant="micro" class="size-4 text-indigo-500 shrink-0" />
+                        <span class="font-semibold text-sm text-zinc-900 dark:text-zinc-100" x-text="toolModal.name"></span>
+                    </div>
+                    <button
+                        type="button"
+                        class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
+                        x-on:click="toolModal.open = false"
+                    >
+                        <flux:icon name="x-mark" class="size-5" />
+                    </button>
+                </div>
+                <div class="overflow-y-auto flex-1 divide-y divide-zinc-100 dark:divide-zinc-800">
+                    <div class="px-5 py-4">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Parameters</p>
+                        <pre class="text-xs text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words" x-text="toolModal.arguments || '(none)'"></pre>
+                    </div>
+                    <div class="px-5 py-4" x-show="toolModal.result">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Response</p>
+                        <pre class="text-xs text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words max-h-64" x-text="toolModal.result"></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

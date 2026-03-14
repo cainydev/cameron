@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class AgentTask extends Model
 {
@@ -60,11 +59,11 @@ class AgentTask extends Model
     }
 
     /**
-     * @return HasOne<ResourceLock, $this>
+     * @return HasMany<ResourceLock, $this>
      */
-    public function resourceLock(): HasOne
+    public function resourceLocks(): HasMany
     {
-        return $this->hasOne(ResourceLock::class, 'task_id');
+        return $this->hasMany(ResourceLock::class, 'task_id');
     }
 
     /**

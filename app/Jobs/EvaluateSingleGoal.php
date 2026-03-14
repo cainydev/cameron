@@ -101,6 +101,10 @@ class EvaluateSingleGoal implements ShouldQueue
      */
     protected function allConditionsPass(array $conditions, array $sensorData): bool
     {
+        if (empty($conditions)) {
+            return false;
+        }
+
         foreach ($conditions as $condition) {
             $metric = $condition['metric'] ?? null;
             $operator = $condition['operator'] ?? null;
@@ -130,7 +134,7 @@ class EvaluateSingleGoal implements ShouldQueue
             '>=' => $actual >= $threshold,
             '<' => $actual < $threshold,
             '<=' => $actual <= $threshold,
-            '=', '==' => $actual == $threshold,
+            '==' => $actual == $threshold,
             '!=' => $actual != $threshold,
             default => false,
         };

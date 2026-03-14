@@ -3,7 +3,7 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
+    <body class="h-dvh overflow-hidden bg-white dark:bg-zinc-800">
         <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <flux:sidebar.brand :name="config('app.name')" href="{{ route('cameron') }}" wire:navigate>
@@ -27,7 +27,7 @@
                 @php
                     $tasks = \App\Models\AgentTask::query()
                         ->with('goal')
-                        ->whereHas('goal')
+                        ->whereHas('goal.shop', fn ($q) => $q->where('user_id', auth()->id()))
                         ->orderByRaw("CASE WHEN status = 'waiting_approval' THEN 1 WHEN status = 'running' THEN 2 WHEN status = 'pending' THEN 3 ELSE 4 END")
                         ->orderByDesc('updated_at')
                         ->get();

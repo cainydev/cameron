@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use Google\Ads\GoogleAds\V20\Enums\CampaignStatusEnum\CampaignStatus;
+use Google\Ads\GoogleAds\V20\Resources\Campaign;
+use Google\Ads\GoogleAds\V20\Services\CampaignOperation;
+use Google\Ads\GoogleAds\V20\Services\MutateCampaignsRequest;
+use Google\Protobuf\FieldMask;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
 
@@ -28,12 +33,33 @@ class PauseGoogleAdCampaign extends AbstractAgentTool
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{campaign_id: int, reason: string}  $arguments
-     * @return array{success: bool, campaign_id: int, status: string}
+     * @param  array{campaign_id: string, reason: string}  $arguments
+     * @return array{success: bool, campaign_id: string, status: string}
      */
     public function execute(array $arguments): array
     {
-        // TODO: Integrate with the Google Ads API to actually pause the campaign.
+        $customerId = $this->shop?->google_ads_customer_id
+            ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
+
+        $service = $this->googleApiService();
+        $adsClient = $service->makeAdsClient();
+
+        $campaign = new Campaign([
+            'resource_name' => sprintf('customers/%s/campaigns/%s', $customerId, $arguments['campaign_id']),
+            'status' => CampaignStatus::PAUSED,
+        ]);
+
+        $operation = new CampaignOperation;
+        $operation->setUpdate($campaign);
+        $operation->setUpdateMask(new FieldMask(['paths' => ['status']]));
+
+        $request = new MutateCampaignsRequest([
+            'customer_id' => $customerId,
+            'operations' => [$operation],
+        ]);
+
+        $adsClient->getCampaignServiceClient()->mutateCampaigns($request);
+
         return [
             'success' => true,
             'campaign_id' => $arguments['campaign_id'],
@@ -47,7 +73,7 @@ class PauseGoogleAdCampaign extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'campaign_id' => $schema->integer()->required(),
+            'campaign_id' => $schema->string()->required(),
             'reason' => $schema->string()->required(),
         ];
     }

@@ -21,7 +21,7 @@ class EnsureShopIsConfigured
         $user = Auth::user();
 
         if (! $user->hasGoogleConnected()) {
-            return redirect('/setup');
+            return redirect()->route('shop.setup');
         }
 
         if ($user->shops()->doesntExist()) {
