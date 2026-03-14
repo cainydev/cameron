@@ -1,14 +1,11 @@
 <?php
 
 use App\Ai\Agents\TaskWorker;
-use App\Ai\Tools\AddGoalMemory;
-use App\Ai\Tools\GetUnderperformingSearchTerms;
 use App\Ai\Tools\MarkTaskAsResolved;
-use App\Ai\Tools\PauseGoogleAdCampaign;
-use App\Ai\Tools\UpdateAdsCampaignStatus;
-use App\Ai\Tools\UpdateKeywordBid;
+use App\Models\Shop;
 use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasStructuredOutput;
+use Laravel\Ai\Contracts\HasTools;
 
 it('has instructions referencing autonomous background worker', function () {
     $worker = new TaskWorker(goalContext: '{}', taskId: 1);
@@ -69,17 +66,39 @@ it('does not append shared memory section when no memories', function () {
     expect((string) $worker->instructions())->not->toContain('Shared Memory from Previous Workers');
 });
 
-it('provides all six tools', function () {
-    $worker = new TaskWorker(goalContext: '{}', taskId: 1);
-    $tools = iterator_to_array($worker->tools());
+it('has tools', function () {
+    expect(new TaskWorker(goalContext: '{}', taskId: 1))->toBeInstanceOf(HasTools::class);
+});
 
-    expect($tools)->toHaveCount(6)
-        ->and($tools[0])->toBeInstanceOf(PauseGoogleAdCampaign::class)
-        ->and($tools[1])->toBeInstanceOf(UpdateAdsCampaignStatus::class)
-        ->and($tools[2])->toBeInstanceOf(AddGoalMemory::class)
-        ->and($tools[3])->toBeInstanceOf(MarkTaskAsResolved::class)
-        ->and($tools[4])->toBeInstanceOf(GetUnderperformingSearchTerms::class)
-        ->and($tools[5])->toBeInstanceOf(UpdateKeywordBid::class);
+it('always includes MarkTaskAsResolved', function () {
+    $tools = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1))->tools());
+
+    expect(array_map(fn ($t) => $t::class, $tools))->toContain(MarkTaskAsResolved::class);
+});
+
+it('has more tools when a shop is given', function () {
+    $withoutShop = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1))->tools());
+    $withShop = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1, shop: Shop::factory()->make()))->tools());
+
+    expect(count($withShop))->toBeGreaterThan(count($withoutShop));
+});
+
+it('has at least one write tool when a shop is given', function () {
+    $tools = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1, shop: Shop::factory()->make()))->tools());
+
+    $hasWriteTool = false;
+
+    foreach ($tools as $tool) {
+        $prop = (new ReflectionClass($tool))->getProperty('isReadOnly');
+        $prop->setAccessible(true);
+
+        if (! $prop->getValue($tool)) {
+            $hasWriteTool = true;
+            break;
+        }
+    }
+
+    expect($hasWriteTool)->toBeTrue();
 });
 
 it('implements Conversational', function () {

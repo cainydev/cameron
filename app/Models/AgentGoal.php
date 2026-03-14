@@ -7,6 +7,7 @@ namespace App\Models;
 use Database\Factories\AgentGoalFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AgentGoal extends Model
@@ -20,6 +21,7 @@ class AgentGoal extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'shop_id',
         'name',
         'initial_context',
         'sensor_tool_class',
@@ -46,6 +48,14 @@ class AgentGoal extends Model
             'is_one_off' => 'boolean',
             'completed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Shop, $this>
+     */
+    public function shop(): BelongsTo
+    {
+        return $this->belongsTo(Shop::class);
     }
 
     /**

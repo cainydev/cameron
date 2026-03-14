@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
-use App\Services\GoogleApiService;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Auth;
 use Stringable;
 
 /**
@@ -28,12 +26,15 @@ class GetUnderperformingSearchTerms extends AbstractAgentTool
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{customerId: string}  $arguments
+     * @param  array<string, mixed>  $arguments
      * @return array<int, array{searchTerm: string, costMicros: int, conversions: float}>
      */
     public function execute(array $arguments): array
     {
-        $service = new GoogleApiService(Auth::user());
+        $customerId = $this->shop?->google_ads_customer_id
+            ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
+
+        $service = $this->googleApiService();
         $adsClient = $service->makeAdsClient();
 
         $query = 'SELECT search_term_view.search_term, metrics.cost_micros, metrics.conversions
@@ -45,7 +46,7 @@ class GetUnderperformingSearchTerms extends AbstractAgentTool
                   LIMIT 20';
 
         $request = new SearchGoogleAdsRequest([
-            'customer_id' => $arguments['customerId'],
+            'customer_id' => $customerId,
             'query' => $query,
         ]);
 
@@ -69,8 +70,6 @@ class GetUnderperformingSearchTerms extends AbstractAgentTool
      */
     public function schema(JsonSchema $schema): array
     {
-        return [
-            'customerId' => $schema->string()->required(),
-        ];
+        return [];
     }
 }

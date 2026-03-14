@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
-use App\Services\GoogleApiService;
 use Google\Service\Webmasters\SearchAnalyticsQueryRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Auth;
 use Stringable;
 
 /**
- * Fetches top search keywords from Google Search Console for a given site.
+ * Fetches top search keywords from Google Search Console for the shop's site.
  */
 class GetSearchConsoleKeywords extends AbstractAgentTool
 {
@@ -22,20 +20,23 @@ class GetSearchConsoleKeywords extends AbstractAgentTool
      */
     public function description(): Stringable|string
     {
-        return 'Fetch top search keywords from Google Search Console for a given site URL and date range.';
+        return 'Fetch top search keywords from Google Search Console for the configured site and date range.';
     }
 
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{siteUrl: string, startDate: string, endDate: string, limit?: int}  $arguments
+     * @param  array{startDate: string, endDate: string, limit?: int}  $arguments
      * @return array<int, array{query: string, clicks: float, impressions: float, ctr: float, position: float}>
      */
     public function execute(array $arguments): array
     {
-        $limit = $arguments['limit'] ?? 10;
+        $siteUrl = $this->shop?->search_console_url
+            ?? throw new \RuntimeException('Shop has no Search Console URL configured.');
 
-        $service = new GoogleApiService(Auth::user());
+        $limit = $arguments['limit'] ?? 5;
+
+        $service = $this->googleApiService();
         $webmasters = $service->makeSearchConsoleClient();
 
         $queryRequest = new SearchAnalyticsQueryRequest;
@@ -44,7 +45,7 @@ class GetSearchConsoleKeywords extends AbstractAgentTool
         $queryRequest->setEndDate($arguments['endDate']);
         $queryRequest->setRowLimit($limit);
 
-        $response = $webmasters->searchanalytics->query($arguments['siteUrl'], $queryRequest);
+        $response = $webmasters->searchanalytics->query($siteUrl, $queryRequest);
 
         $rows = [];
 
@@ -67,7 +68,6 @@ class GetSearchConsoleKeywords extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'siteUrl' => $schema->string()->required(),
             'startDate' => $schema->string()->required(),
             'endDate' => $schema->string()->required(),
             'limit' => $schema->integer(),

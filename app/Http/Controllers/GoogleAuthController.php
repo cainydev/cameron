@@ -55,7 +55,7 @@ class GoogleAuthController extends Controller
             'google_refresh_token' => $client->getRefreshToken(),
         ]);
 
-        return redirect()->route('profile.edit')
+        return redirect()->route('shop.edit')
             ->with('status', 'google-connected');
     }
 }

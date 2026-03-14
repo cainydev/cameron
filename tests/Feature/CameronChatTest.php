@@ -1,56 +1,45 @@
 <?php
 
 use App\Ai\Agents\CameronChat;
-use App\Ai\Tools\CreateGoalFromDescription;
-use App\Ai\Tools\GetAccountPerformanceSummary;
-use App\Ai\Tools\GetActiveGoalsSummary;
-use App\Ai\Tools\GetGa4Conversions;
-use App\Ai\Tools\GetGa4Traffic;
-use App\Ai\Tools\GetGoogleAdsCampaigns;
-use App\Ai\Tools\GetPendingApprovals;
-use App\Ai\Tools\GetSearchConsoleKeywords;
 use App\Ai\Tools\UpdateAdsCampaignStatus;
+use App\Models\Shop;
 
-it('has correct instructions mentioning Cameron', function () {
-    $agent = new CameronChat;
+it('has instructions that include the ads core guidelines', function () {
+    $agent = new CameronChat(Shop::factory()->make());
 
-    expect((string) $agent->instructions())->toContain('Cameron');
+    expect((string) $agent->instructions())->toContain('Non-Negotiable Operating Principles');
 });
 
 it('mentions CreateGoalFromDescription in its instructions', function () {
-    $agent = new CameronChat;
+    $agent = new CameronChat(Shop::factory()->make());
 
     expect((string) $agent->instructions())->toContain('CreateGoalFromDescription');
 });
 
-it('does not include UpdateAdsCampaignStatus in its tools', function () {
-    $agent = new CameronChat;
-    $tools = iterator_to_array($agent->tools());
+it('has no tools that require approval', function () {
+    $tools = iterator_to_array((new CameronChat(Shop::factory()->make()))->tools());
 
-    $toolClasses = array_map(fn ($t) => get_class($t), $tools);
+    foreach ($tools as $tool) {
+        $prop = (new ReflectionClass($tool))->getProperty('requiresApproval');
+        $prop->setAccessible(true);
+        $class = $tool::class;
 
-    expect($toolClasses)->not->toContain(UpdateAdsCampaignStatus::class);
+        expect($prop->getValue($tool))
+            ->toBeFalse("Expected {$class} not to require approval");
+    }
 });
 
-it('provides all eight tools', function () {
-    $agent = new CameronChat;
-    $tools = iterator_to_array($agent->tools());
+it('does not include UpdateAdsCampaignStatus in its tools', function () {
+    $tools = iterator_to_array((new CameronChat(Shop::factory()->make()))->tools());
 
-    expect($tools)->toHaveCount(8)
-        ->and($tools[0])->toBeInstanceOf(GetPendingApprovals::class)
-        ->and($tools[1])->toBeInstanceOf(GetActiveGoalsSummary::class)
-        ->and($tools[2])->toBeInstanceOf(CreateGoalFromDescription::class)
-        ->and($tools[3])->toBeInstanceOf(GetGa4Traffic::class)
-        ->and($tools[4])->toBeInstanceOf(GetGoogleAdsCampaigns::class)
-        ->and($tools[5])->toBeInstanceOf(GetSearchConsoleKeywords::class)
-        ->and($tools[6])->toBeInstanceOf(GetGa4Conversions::class)
-        ->and($tools[7])->toBeInstanceOf(GetAccountPerformanceSummary::class);
+    expect(array_map(fn ($t) => $t::class, $tools))
+        ->not->toContain(UpdateAdsCampaignStatus::class);
 });
 
 it('can be prompted via the AI SDK fake', function () {
     CameronChat::fake(['Hello! I am Cameron, your e-commerce assistant.']);
 
-    $response = (new CameronChat)->prompt('Hello');
+    $response = (new CameronChat(Shop::factory()->make()))->prompt('Hello');
 
     expect((string) $response)->toContain('Cameron');
 

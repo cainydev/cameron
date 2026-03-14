@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
-use App\Services\GoogleApiService;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Metric;
 use Google\Analytics\Data\V1beta\RunReportRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Auth;
 use Stringable;
 
 /**
@@ -31,16 +29,22 @@ class GetAccountPerformanceSummary extends AbstractAgentTool
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{propertyId: string, customerId: string, startDate: string, endDate: string}  $arguments
-     * @return array{sessions: int, pageViews: int, totalSpendMicros: int, totalConversions: float, period: array{start: string, end: string}}
+     * @param  array{startDate: string, endDate: string}  $arguments
+     * @return array{sessions: int, pageViews: int, totalSpendMicros: int, totalClicks: int, totalConversions: float, period: array{start: string, end: string}}
      */
     public function execute(array $arguments): array
     {
-        $service = new GoogleApiService(Auth::user());
+        $propertyId = $this->shop?->ga4_property_id
+            ?? throw new \RuntimeException('Shop has no GA4 property ID configured.');
+
+        $customerId = $this->shop?->google_ads_customer_id
+            ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
+
+        $service = $this->googleApiService();
 
         $analyticsClient = $service->makeAnalyticsClient();
         $request = new RunReportRequest([
-            'property' => 'properties/'.$arguments['propertyId'],
+            'property' => 'properties/'.$propertyId,
             'date_ranges' => [
                 new DateRange([
                     'start_date' => $arguments['startDate'],
@@ -65,12 +69,12 @@ class GetAccountPerformanceSummary extends AbstractAgentTool
         }
 
         $adsClient = $service->makeAdsClient();
-        $query = "SELECT metrics.cost_micros, metrics.conversions
+        $query = "SELECT metrics.cost_micros, metrics.conversions, metrics.clicks
                   FROM customer
                   WHERE segments.date BETWEEN '{$arguments['startDate']}' AND '{$arguments['endDate']}'";
 
         $adsRequest = new SearchGoogleAdsRequest([
-            'customer_id' => $arguments['customerId'],
+            'customer_id' => $customerId,
             'query' => $query,
         ]);
 
@@ -78,16 +82,19 @@ class GetAccountPerformanceSummary extends AbstractAgentTool
 
         $totalSpendMicros = 0;
         $totalConversions = 0.0;
+        $totalClicks = 0;
 
         foreach ($adsResponse->iterateAllElements() as $row) {
             $totalSpendMicros += $row->getMetrics()->getCostMicros();
             $totalConversions += $row->getMetrics()->getConversions();
+            $totalClicks += $row->getMetrics()->getClicks();
         }
 
         return [
             'sessions' => $sessions,
             'pageViews' => $pageViews,
             'totalSpendMicros' => $totalSpendMicros,
+            'totalClicks' => $totalClicks,
             'totalConversions' => $totalConversions,
             'period' => [
                 'start' => $arguments['startDate'],
@@ -102,8 +109,6 @@ class GetAccountPerformanceSummary extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'propertyId' => $schema->string()->required(),
-            'customerId' => $schema->string()->required(),
             'startDate' => $schema->string()->required(),
             'endDate' => $schema->string()->required(),
         ];

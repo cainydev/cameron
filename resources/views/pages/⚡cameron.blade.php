@@ -3,8 +3,10 @@
 use App\Ai\Agents\CameronChat as CameronChatAgent;
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
+use App\Models\Shop;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Ai\Exceptions\RateLimitedException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -57,7 +59,8 @@ new class extends Component
         $this->prompt = '';
 
         try {
-            $agent = new CameronChatAgent;
+            $shop = Shop::query()->where('user_id', Auth::id())->with('user')->firstOrFail();
+            $agent = new CameronChatAgent($shop);
 
             if ($this->conversationId) {
                 $stream = $agent->continue($this->conversationId, as: $user)
@@ -82,6 +85,9 @@ new class extends Component
 
             $this->streamingResponse = '';
 
+        } catch (RateLimitedException $e) {
+            $this->streamingResponse = '';
+            $this->addError('prompt', 'The AI provider is rate-limited right now. Please wait a moment and try again.');
         } finally {
             $this->isProcessing = false;
             $this->dispatch('message-done');
@@ -90,8 +96,14 @@ new class extends Component
 
     public function startNewConversation(): void
     {
+        if ($this->conversationId) {
+            AgentConversationMessage::query()->where('conversation_id', $this->conversationId)->delete();
+            AgentConversation::query()->where('id', $this->conversationId)->delete();
+        }
+
         $this->conversationId = null;
         $this->streamingResponse = '';
+        unset($this->chatMessages);
     }
 };
 ?>
@@ -163,6 +175,16 @@ new class extends Component
                         <div class="flex items-start gap-3">
                             <img src="{{ Vite::asset('resources/images/cameron_sm.png') }}" alt="Cameron" class="size-7 rounded-full shrink-0 mt-0.5">
                             <div class="flex-1 min-w-0">
+                                @if($message->tool_calls)
+                                    <div class="flex flex-wrap gap-1.5 mb-2">
+                                        @foreach($message->tool_calls as $call)
+                                            <span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900">
+                                                <flux:icon name="sparkles" variant="micro" class="size-3 shrink-0" />
+                                                {{ $call['name'] }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @endif
                                 <x-markdown class="prose prose-base prose-zinc dark:prose-invert max-w-none">{{ $message->content }}</x-markdown>
                                 <flux:text class="text-xs text-zinc-400 dark:text-zinc-500 mt-1 block">
                                     {{ $message->created_at->format('g:i A') }}
@@ -214,6 +236,16 @@ new class extends Component
                 @endif
             </div>
         </div>
+
+        <!-- Rate limit error -->
+        @error('prompt')
+            <div class="flex justify-center mb-2">
+                <div class="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg px-4 py-2 max-w-2xl w-full mx-4">
+                    <flux:icon name="exclamation-circle" variant="micro" class="size-4 shrink-0" />
+                    {{ $message }}
+                </div>
+            </div>
+        @enderror
 
         <!-- Composer -->
         <div class="py-5 flex justify-center">

@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
-use App\Services\GoogleApiService;
 use Google\Ads\GoogleAds\V20\Enums\CampaignStatusEnum\CampaignStatus;
 use Google\Ads\GoogleAds\V20\Resources\Campaign;
 use Google\Ads\GoogleAds\V20\Services\CampaignOperation;
 use Google\Ads\GoogleAds\V20\Services\MutateCampaignsRequest;
 use Google\Protobuf\FieldMask;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Auth;
 use Stringable;
 
 /**
@@ -34,18 +32,21 @@ class UpdateAdsCampaignStatus extends AbstractAgentTool
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{customerId: string, campaignId: string, status: string, reason: string}  $arguments
+     * @param  array{campaignId: string, status: string, reason: string}  $arguments
      * @return array{success: bool, campaignId: string, status: string}
      */
     public function execute(array $arguments): array
     {
-        $service = new GoogleApiService(Auth::user());
+        $customerId = $this->shop?->google_ads_customer_id
+            ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
+
+        $service = $this->googleApiService();
         $adsClient = $service->makeAdsClient();
 
         $statusValue = $arguments['status'] === 'ENABLED' ? CampaignStatus::ENABLED : CampaignStatus::PAUSED;
 
         $campaign = new Campaign([
-            'resource_name' => sprintf('customers/%s/campaigns/%s', $arguments['customerId'], $arguments['campaignId']),
+            'resource_name' => sprintf('customers/%s/campaigns/%s', $customerId, $arguments['campaignId']),
             'status' => $statusValue,
         ]);
 
@@ -54,7 +55,7 @@ class UpdateAdsCampaignStatus extends AbstractAgentTool
         $operation->setUpdateMask(new FieldMask(['paths' => ['status']]));
 
         $request = new MutateCampaignsRequest([
-            'customer_id' => $arguments['customerId'],
+            'customer_id' => $customerId,
             'operations' => [$operation],
         ]);
 
@@ -73,7 +74,6 @@ class UpdateAdsCampaignStatus extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'customerId' => $schema->string()->required(),
             'campaignId' => $schema->string()->required(),
             'status' => $schema->string()->enum(['ENABLED', 'PAUSED'])->required(),
             'reason' => $schema->string()->required(),

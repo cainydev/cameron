@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
-use App\Services\GoogleApiService;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Dimension;
 use Google\Analytics\Data\V1beta\Filter;
@@ -14,11 +13,10 @@ use Google\Analytics\Data\V1beta\FilterExpression;
 use Google\Analytics\Data\V1beta\Metric;
 use Google\Analytics\Data\V1beta\RunReportRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Auth;
 use Stringable;
 
 /**
- * Fetches GA4 conversion event data for a given property and date range.
+ * Fetches GA4 conversion event data for the shop's property and a given date range.
  */
 class GetGa4Conversions extends AbstractAgentTool
 {
@@ -29,22 +27,25 @@ class GetGa4Conversions extends AbstractAgentTool
      */
     public function description(): Stringable|string
     {
-        return 'Fetch GA4 conversion data (conversions and event counts) for a given property ID and date range. Optionally filter by a specific event name.';
+        return 'Fetch GA4 conversion data (conversions and event counts) for the configured property and date range. Optionally filter by a specific event name.';
     }
 
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{propertyId: string, startDate: string, endDate: string, eventName?: string}  $arguments
+     * @param  array{startDate: string, endDate: string, eventName?: string}  $arguments
      * @return array<int, array{eventName: string, conversions: string, eventCount: string}>
      */
     public function execute(array $arguments): array
     {
-        $service = new GoogleApiService(Auth::user());
+        $propertyId = $this->shop?->ga4_property_id
+            ?? throw new \RuntimeException('Shop has no GA4 property ID configured.');
+
+        $service = $this->googleApiService();
         $client = $service->makeAnalyticsClient();
 
         $requestParams = [
-            'property' => 'properties/'.$arguments['propertyId'],
+            'property' => 'properties/'.$propertyId,
             'date_ranges' => [
                 new DateRange([
                     'start_date' => $arguments['startDate'],
@@ -99,7 +100,6 @@ class GetGa4Conversions extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'propertyId' => $schema->string()->required(),
             'startDate' => $schema->string()->required(),
             'endDate' => $schema->string()->required(),
             'eventName' => $schema->string(),

@@ -45,6 +45,14 @@ class EvaluateSingleGoal implements ShouldQueue
 
         $sensor = app($sensorClass);
 
+        if ($sensor instanceof AbstractAgentTool && $this->goal->relationLoaded('shop') === false) {
+            $this->goal->loadMissing('shop.user');
+        }
+
+        if ($sensor instanceof AbstractAgentTool && $this->goal->shop) {
+            $sensor->forShop($this->goal->shop);
+        }
+
         if (! $sensor instanceof AbstractAgentTool) {
             Log::warning("Sensor tool [{$sensorClass}] does not extend AbstractAgentTool.");
 

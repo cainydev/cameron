@@ -36,7 +36,11 @@ class CreateGoalFromDescription extends AbstractAgentTool
      */
     public function execute(array $arguments): array
     {
-        $response = (new GoalArchitect)->prompt($arguments['context']);
+        $architect = $this->shop
+            ? new GoalArchitect($this->shop)
+            : new GoalArchitect;
+
+        $response = $architect->prompt($arguments['context']);
 
         $definition = [
             'sensor_tool_class' => $response['sensor_tool_class'],
@@ -47,6 +51,7 @@ class CreateGoalFromDescription extends AbstractAgentTool
         ];
 
         $goal = AgentGoal::query()->create([
+            'shop_id' => $this->shop?->id,
             'name' => $response['name'],
             'initial_context' => $response['initial_context'] ?? null,
             ...$definition,

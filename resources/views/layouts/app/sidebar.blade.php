@@ -64,6 +64,32 @@
 
             <flux:spacer />
 
+            {{-- Shop selector --}}
+            @php $currentShop = auth()->user()->shops()->first(); @endphp
+            @if($currentShop)
+            <flux:dropdown position="top" align="start" class="w-full">
+                <flux:sidebar.item icon="building-storefront" suffix-icon="chevron-up-down" class="w-full">
+                    {{ $currentShop->name }}
+                </flux:sidebar.item>
+                <flux:menu>
+                    <flux:menu.radio.group>
+                        @foreach(auth()->user()->shops as $shop)
+                            <flux:menu.radio :checked="$shop->id === $currentShop->id">
+                                {{ $shop->name }}
+                            </flux:menu.radio>
+                        @endforeach
+                    </flux:menu.radio.group>
+                    <flux:menu.separator />
+                    <flux:menu.item icon="plus" :href="route('shop.setup')" wire:navigate>
+                        New Shop
+                    </flux:menu.item>
+                    <flux:menu.item icon="cog-6-tooth" :href="route('shop.edit')" wire:navigate>
+                        Configure Shop
+                    </flux:menu.item>
+                </flux:menu>
+            </flux:dropdown>
+            @endif
+
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 

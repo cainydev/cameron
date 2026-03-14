@@ -33,7 +33,6 @@ class GoogleApiService
         $client->setScopes($scopes ?: config('google.scopes'));
         $client->setAccessType('offline');
 
-        $client->setAccessToken(['refresh_token' => $this->user->google_refresh_token]);
         $client->fetchAccessTokenWithRefreshToken($this->user->google_refresh_token);
 
         return $client;

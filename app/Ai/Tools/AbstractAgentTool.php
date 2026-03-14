@@ -9,6 +9,9 @@ use App\Enums\ApprovalStatus;
 use App\Events\ApprovalRequired;
 use App\Models\AgentTask;
 use App\Models\PendingApproval;
+use App\Models\Shop;
+use App\Services\GoogleApiService;
+use Illuminate\Support\Facades\Auth;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 use Stringable;
@@ -38,6 +41,11 @@ abstract class AbstractAgentTool implements Tool
     protected ?int $activeTaskId = null;
 
     /**
+     * The shop context for this tool invocation.
+     */
+    protected ?Shop $shop = null;
+
+    /**
      * Execute the tool's core business logic.
      *
      * @param  array<string, mixed>  $arguments
@@ -55,6 +63,27 @@ abstract class AbstractAgentTool implements Tool
     }
 
     /**
+     * Set the shop context for this tool invocation.
+     */
+    public function forShop(Shop $shop): static
+    {
+        $this->shop = $shop;
+
+        return $this;
+    }
+
+    /**
+     * Build a GoogleApiService authenticated as the shop's owner,
+     * falling back to the currently authenticated user when running in web context.
+     */
+    protected function googleApiService(): GoogleApiService
+    {
+        $user = $this->shop?->user ?? Auth::user();
+
+        return new GoogleApiService($user);
+    }
+
+    /**
      * Handle the tool invocation from the AI SDK.
      *
      * If the tool requires approval, logs a PendingApproval record and returns
@@ -66,7 +95,11 @@ abstract class AbstractAgentTool implements Tool
             return $this->queueForApproval($request);
         }
 
-        $result = $this->execute($request->toArray());
+        try {
+            $result = $this->execute($request->toArray());
+        } catch (\RuntimeException $e) {
+            return $e->getMessage();
+        }
 
         return json_encode($result, JSON_THROW_ON_ERROR);
     }

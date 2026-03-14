@@ -10,9 +10,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
     Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');
 
-    Route::livewire('cameron', 'pages::cameron')->name('cameron');
-    Route::livewire('goals', 'pages::goals')->name('goals');
-    Route::livewire('agents/{agent}', 'pages::agent')->name('agent');
+    // Onboarding: connect Google (no shop required)
+    Route::livewire('setup', 'pages::shop.setup')->name('shop.setup');
+
+    // Shop create/edit: requires Google connected, but not a shop yet
+    Route::livewire('shop/edit', 'pages::shop.edit')->name('shop.edit');
+
+    Route::middleware(['shop.configured'])->group(function () {
+        Route::livewire('cameron', 'pages::cameron')->name('cameron');
+        Route::livewire('goals', 'pages::goals')->name('goals');
+        Route::livewire('agents/{agent}', 'pages::agent')->name('agent');
+    });
 });
 
 require __DIR__.'/settings.php';

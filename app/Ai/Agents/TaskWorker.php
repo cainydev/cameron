@@ -8,8 +8,11 @@ use App\Ai\Tools\AddGoalMemory;
 use App\Ai\Tools\GetUnderperformingSearchTerms;
 use App\Ai\Tools\MarkTaskAsResolved;
 use App\Ai\Tools\PauseGoogleAdCampaign;
+use App\Ai\Tools\ReadAdsKnowledge;
 use App\Ai\Tools\UpdateAdsCampaignStatus;
 use App\Ai\Tools\UpdateKeywordBid;
+use App\Models\Shop;
+use Illuminate\Support\Facades\File;
 use Laravel\Ai\Attributes\MaxSteps;
 use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Concerns\RemembersConversations;
@@ -36,6 +39,7 @@ class TaskWorker implements Agent, Conversational, HasTools
     public function __construct(
         public string $goalContext,
         public int $taskId,
+        public ?Shop $shop = null,
         public ?string $urgencyDeadline = null,
         public ?string $initialContext = null,
         public array $activeMemories = [],
@@ -46,9 +50,17 @@ class TaskWorker implements Agent, Conversational, HasTools
      */
     public function instructions(): Stringable|string
     {
+        $now = now()->setTimezone($this->shop?->timezone ?? 'UTC');
+        $currentDateTime = $now->toDateTimeString().' ('.($this->shop?->timezone ?? 'UTC').')';
+        $adsCore = File::get(resource_path('prompts/ads_core.md'));
+
         $instructions = <<<PROMPT
+        {$adsCore}
+
+
         You are an autonomous background worker for an e-commerce management system.
         The current task ID is {$this->taskId}.
+        Current date/time: {$currentDateTime}
 
         Your job:
         1. Analyze the goal context provided to understand what metric has failed and why.
@@ -86,13 +98,22 @@ class TaskWorker implements Agent, Conversational, HasTools
      */
     public function tools(): iterable
     {
+        $shop = $this->shop;
+
+        $googleTools = $shop
+            ? [
+                (new UpdateAdsCampaignStatus)->forTask($this->taskId)->forShop($shop),
+                (new GetUnderperformingSearchTerms)->forShop($shop),
+                (new UpdateKeywordBid)->forTask($this->taskId)->forShop($shop),
+            ]
+            : [];
+
         return [
             (new PauseGoogleAdCampaign)->forTask($this->taskId),
-            (new UpdateAdsCampaignStatus)->forTask($this->taskId),
+            ...$googleTools,
+            new ReadAdsKnowledge,
             (new AddGoalMemory)->forTask($this->taskId),
             (new MarkTaskAsResolved)->forTask($this->taskId),
-            new GetUnderperformingSearchTerms,
-            new UpdateKeywordBid,
         ];
     }
 }

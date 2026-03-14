@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
-use App\Services\GoogleApiService;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Metric;
 use Google\Analytics\Data\V1beta\RunReportRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Auth;
 use Stringable;
 
 /**
- * Fetches GA4 traffic metrics (sessions + pageviews) for a given property and date range.
+ * Fetches GA4 traffic metrics (sessions + pageviews) for the shop's property and a given date range.
  */
 class GetGa4Traffic extends AbstractAgentTool
 {
@@ -24,22 +22,25 @@ class GetGa4Traffic extends AbstractAgentTool
      */
     public function description(): Stringable|string
     {
-        return 'Fetch GA4 traffic data (sessions and page views) for a given property ID and date range.';
+        return 'Fetch GA4 traffic data (sessions and page views) for the configured property and date range.';
     }
 
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{propertyId: string, startDate: string, endDate: string}  $arguments
+     * @param  array{startDate: string, endDate: string}  $arguments
      * @return array<int, array{sessions: string, pageViews: string}>
      */
     public function execute(array $arguments): array
     {
-        $service = new GoogleApiService(Auth::user());
+        $propertyId = $this->shop?->ga4_property_id
+            ?? throw new \RuntimeException('Shop has no GA4 property ID configured.');
+
+        $service = $this->googleApiService();
         $client = $service->makeAnalyticsClient();
 
         $request = new RunReportRequest([
-            'property' => 'properties/'.$arguments['propertyId'],
+            'property' => 'properties/'.$propertyId,
             'date_ranges' => [
                 new DateRange([
                     'start_date' => $arguments['startDate'],
@@ -73,7 +74,6 @@ class GetGa4Traffic extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'propertyId' => $schema->string()->required(),
             'startDate' => $schema->string()->required(),
             'endDate' => $schema->string()->required(),
         ];

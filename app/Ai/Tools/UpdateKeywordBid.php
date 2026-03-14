@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
-use App\Services\GoogleApiService;
 use Google\Ads\GoogleAds\V20\Resources\AdGroupCriterion;
 use Google\Ads\GoogleAds\V20\Services\AdGroupCriterionOperation;
 use Google\Ads\GoogleAds\V20\Services\MutateAdGroupCriteriaRequest;
 use Google\Protobuf\FieldMask;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Auth;
 use Stringable;
 
 /**
@@ -33,18 +31,21 @@ class UpdateKeywordBid extends AbstractAgentTool
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{customerId: string, adGroupId: string, criterionId: string, newCpcBidMicros: int, reason: string}  $arguments
+     * @param  array{adGroupId: string, criterionId: string, newCpcBidMicros: int, reason: string}  $arguments
      * @return array{success: bool, criterionId: string, newCpcBidMicros: int}
      */
     public function execute(array $arguments): array
     {
-        $service = new GoogleApiService(Auth::user());
+        $customerId = $this->shop?->google_ads_customer_id
+            ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
+
+        $service = $this->googleApiService();
         $adsClient = $service->makeAdsClient();
 
         $criterion = new AdGroupCriterion([
             'resource_name' => sprintf(
                 'customers/%s/adGroupCriteria/%s~%s',
-                $arguments['customerId'],
+                $customerId,
                 $arguments['adGroupId'],
                 $arguments['criterionId'],
             ),
@@ -56,7 +57,7 @@ class UpdateKeywordBid extends AbstractAgentTool
         $operation->setUpdateMask(new FieldMask(['paths' => ['cpc_bid_micros']]));
 
         $request = new MutateAdGroupCriteriaRequest([
-            'customer_id' => $arguments['customerId'],
+            'customer_id' => $customerId,
             'operations' => [$operation],
         ]);
 
@@ -75,7 +76,6 @@ class UpdateKeywordBid extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'customerId' => $schema->string()->required(),
             'adGroupId' => $schema->string()->required(),
             'criterionId' => $schema->string()->required(),
             'newCpcBidMicros' => $schema->integer()->required(),

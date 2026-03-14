@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
-use App\Services\GoogleApiService;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Support\Facades\Auth;
 use Stringable;
 
 /**
- * Retrieves a list of Google Ads campaigns for the given customer ID.
+ * Retrieves a list of Google Ads campaigns for the shop's customer ID.
  */
 class GetGoogleAdsCampaigns extends AbstractAgentTool
 {
@@ -22,26 +20,29 @@ class GetGoogleAdsCampaigns extends AbstractAgentTool
      */
     public function description(): Stringable|string
     {
-        return 'List Google Ads campaigns (id, name, status, budget) for a given customer ID.';
+        return 'List Google Ads campaigns ordered by spend in the last 30 days. Defaults to 10 results. Increase limit to fetch more campaigns.';
     }
 
     /**
      * Execute the tool's core business logic.
      *
-     * @param  array{customerId: string, limit?: int}  $arguments
-     * @return array<int, array{id: string, name: string, status: string}>
+     * @param  array{limit?: int}  $arguments
+     * @return array<int, array{id: string, name: string, status: string, cost_micros: int}>
      */
     public function execute(array $arguments): array
     {
-        $limit = $arguments['limit'] ?? 100;
-        $customerId = $arguments['customerId'];
+        $customerId = $this->shop?->google_ads_customer_id
+            ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
 
-        $service = new GoogleApiService(Auth::user());
+        $limit = $arguments['limit'] ?? 10;
+
+        $service = $this->googleApiService();
         $adsClient = $service->makeAdsClient();
 
-        $query = "SELECT campaign.id, campaign.name, campaign.status, campaign_budget.amount_micros
+        $query = "SELECT campaign.id, campaign.name, campaign.status, metrics.cost_micros
                   FROM campaign
-                  ORDER BY campaign.id
+                  WHERE segments.date DURING LAST_30_DAYS
+                  ORDER BY metrics.cost_micros DESC
                   LIMIT {$limit}";
 
         $request = new SearchGoogleAdsRequest([
@@ -55,13 +56,12 @@ class GetGoogleAdsCampaigns extends AbstractAgentTool
 
         foreach ($response->iterateAllElements() as $row) {
             $campaign = $row->getCampaign();
-            $budget = $row->getCampaignBudget();
 
             $campaigns[] = [
                 'id' => $campaign->getId(),
                 'name' => $campaign->getName(),
                 'status' => $campaign->getStatus(),
-                'budget_micros' => $budget?->getAmountMicros(),
+                'cost_micros' => $row->getMetrics()->getCostMicros(),
             ];
         }
 
@@ -74,7 +74,6 @@ class GetGoogleAdsCampaigns extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'customerId' => $schema->string()->required(),
             'limit' => $schema->integer(),
         ];
     }

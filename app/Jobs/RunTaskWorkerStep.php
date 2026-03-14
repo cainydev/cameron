@@ -65,7 +65,7 @@ class RunTaskWorkerStep implements ShouldQueue
 
         $promptText = $this->injectMessage ?? '[SYSTEM] Next step.';
 
-        $task->loadMissing('goal');
+        $task->loadMissing('goal.shop.user');
         $goal = $task->goal;
 
         $validMemories = $goal?->memories()
@@ -76,6 +76,7 @@ class RunTaskWorkerStep implements ShouldQueue
         $worker = new TaskWorker(
             goalContext: json_encode($task->context_payload, JSON_THROW_ON_ERROR),
             taskId: $task->id,
+            shop: $goal?->shop,
             urgencyDeadline: $task->context_payload['temporal_urgency'] ?? null,
             initialContext: $goal?->initial_context,
             activeMemories: $validMemories ?? [],
