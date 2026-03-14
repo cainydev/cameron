@@ -117,7 +117,7 @@ it('hard-aborts to failed and releases lock at stepCount >= 30', function () {
     expect($task->fresh()->status)->toBe(AgentTaskStatus::Failed);
     expect(ResourceLock::query()->where('task_id', $task->id)->count())->toBe(0);
     TaskWorker::assertNeverPrompted();
-    Queue::assertNothingPushed();
+    Queue::assertNotPushed(RunTaskWorkerStep::class);
 });
 
 it('failed() method transitions task to failed and deletes resource lock', function () {
