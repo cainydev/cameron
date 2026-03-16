@@ -58,7 +58,7 @@ class GetAuctionInsights extends AbstractAgentTool
                          metrics.auction_insight_search_top_impression_percentage,
                          metrics.auction_insight_search_absolute_top_impression_percentage,
                          metrics.auction_insight_search_outranking_share
-                  FROM auction_insight_performance_view
+                  FROM campaign
                   {$whereClause}
                   ORDER BY metrics.auction_insight_search_impression_share DESC
                   LIMIT {$limit}";
