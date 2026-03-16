@@ -4,29 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Agents;
 
-use App\Ai\Tools\CheckWebsiteStatus;
-use App\Ai\Tools\CreateGoalFromDescription;
-use App\Ai\Tools\ForgetMemory;
-use App\Ai\Tools\GetAccountPerformanceSummary;
-use App\Ai\Tools\GetActiveGoalsSummary;
-use App\Ai\Tools\GetGa4Conversions;
-use App\Ai\Tools\GetGa4ECommerceItemSales;
-use App\Ai\Tools\GetGa4LandingPagePerformance;
-use App\Ai\Tools\GetGa4Traffic;
-use App\Ai\Tools\GetGa4TrafficSources;
-use App\Ai\Tools\GetGoogleAdsCampaigns;
-use App\Ai\Tools\GetPageHtmlContent;
-use App\Ai\Tools\GetPendingApprovals;
-use App\Ai\Tools\GetSearchConsoleCountries;
-use App\Ai\Tools\GetSearchConsoleDevices;
-use App\Ai\Tools\GetSearchConsoleKeywords;
-use App\Ai\Tools\GetSearchConsoleKeywordsByPage;
-use App\Ai\Tools\GetSearchConsolePages;
-use App\Ai\Tools\ReadAdsKnowledge;
-use App\Ai\Tools\RecallMemories;
-use App\Ai\Tools\RememberFinding;
-use App\Ai\Tools\UpdateMemory;
-use App\Ai\Tools\VerifyGa4TagPresence;
+use App\Ai\ToolRegistry;
+use App\Enums\ToolCategory;
 use App\Models\Shop;
 use Illuminate\Support\Facades\File;
 use Laravel\Ai\Attributes\Model;
@@ -104,30 +83,10 @@ class CameronChat implements Agent, Conversational, HasTools
      */
     public function tools(): iterable
     {
-        return [
-            new GetPendingApprovals,
-            new GetActiveGoalsSummary,
-            (new CreateGoalFromDescription)->forShop($this->shop),
-            (new GetGa4Traffic)->forShop($this->shop),
-            (new GetGa4TrafficSources)->forShop($this->shop),
-            (new GetGa4LandingPagePerformance)->forShop($this->shop),
-            (new GetGa4ECommerceItemSales)->forShop($this->shop),
-            (new GetGoogleAdsCampaigns)->forShop($this->shop),
-            (new GetSearchConsoleKeywords)->forShop($this->shop),
-            (new GetSearchConsolePages)->forShop($this->shop),
-            (new GetSearchConsoleKeywordsByPage)->forShop($this->shop),
-            (new GetSearchConsoleDevices)->forShop($this->shop),
-            (new GetSearchConsoleCountries)->forShop($this->shop),
-            (new GetGa4Conversions)->forShop($this->shop),
-            (new GetAccountPerformanceSummary)->forShop($this->shop),
-            (new CheckWebsiteStatus)->forShop($this->shop),
-            (new GetPageHtmlContent)->forShop($this->shop),
-            (new VerifyGa4TagPresence)->forShop($this->shop),
-            new ReadAdsKnowledge,
-            (new RecallMemories)->forShop($this->shop),
-            (new RememberFinding)->forShop($this->shop),
-            (new UpdateMemory)->forShop($this->shop),
-            (new ForgetMemory)->forShop($this->shop),
-        ];
+        return app(ToolRegistry::class)
+            ->forShop($this->shop)
+            ->excludeApprovalRequired()
+            ->excludeCategories([ToolCategory::System])
+            ->resolve();
     }
 }

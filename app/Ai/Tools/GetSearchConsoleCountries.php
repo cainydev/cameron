@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Service\Webmasters\SearchAnalyticsQueryRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,18 @@ use Stringable;
 /**
  * Fetches Search Console performance broken down by country.
  */
+#[Category(ToolCategory::SearchConsole)]
 class GetSearchConsoleCountries extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Search Console by Country';
+    }
 
     /**
      * Get the description of the tool's purpose.

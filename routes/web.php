@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Shop create/edit: requires Google connected, but not a shop yet
     Route::livewire('shop/edit', 'pages::shop.edit')->name('shop.edit');
+    Route::livewire('shop/tools', 'pages::shop.tools')->name('shop.tools');
 
     Route::middleware(['shop.configured'])->group(function () {
         Route::livewire('cameron', 'pages::cameron')->name('cameron');

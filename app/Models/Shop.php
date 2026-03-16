@@ -29,10 +29,29 @@ class Shop extends Model
         'ga4_property_id',
         'google_ads_customer_id',
         'search_console_url',
+        'google_refresh_token',
+        'merchant_center_id',
         'base_instructions',
         'brand_guidelines',
         'target_roas',
     ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'google_refresh_token',
+    ];
+
+    /**
+     * Determine whether the shop has a connected Google account.
+     */
+    public function hasGoogleConnected(): bool
+    {
+        return ! empty($this->google_refresh_token);
+    }
 
     /**
      * @return BelongsTo<User, $this>
@@ -48,5 +67,13 @@ class Shop extends Model
     public function goals(): HasMany
     {
         return $this->hasMany(AgentGoal::class);
+    }
+
+    /**
+     * @return HasMany<ShopToolSetting, $this>
+     */
+    public function toolSettings(): HasMany
+    {
+        return $this->hasMany(ShopToolSetting::class);
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,18 @@ use Stringable;
 /**
  * Retrieves a list of Google Ads campaigns for the shop's customer ID.
  */
+#[Category(ToolCategory::GoogleAds)]
 class GetGoogleAdsCampaigns extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Google Ads Campaigns';
+    }
 
     /**
      * Get the description of the tool's purpose.

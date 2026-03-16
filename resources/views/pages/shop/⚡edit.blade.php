@@ -31,6 +31,8 @@ new #[Title('Shop Settings')] class extends Component
 
     public string $brandGuidelines = '';
 
+    public string $merchantCenterId = '';
+
     public string $targetRoas = '';
 
     public function mount(): void
@@ -46,6 +48,7 @@ new #[Title('Shop Settings')] class extends Component
             $this->ga4PropertyId = $shop->ga4_property_id ?? '';
             $this->adsCustomerId = $shop->google_ads_customer_id ?? '';
             $this->searchConsoleUrl = $shop->search_console_url ?? '';
+            $this->merchantCenterId = $shop->merchant_center_id ?? '';
             $this->baseInstructions = $shop->base_instructions ?? '';
             $this->brandGuidelines = $shop->brand_guidelines ?? '';
             $this->targetRoas = $shop->target_roas ?? '';
@@ -59,21 +62,41 @@ new #[Title('Shop Settings')] class extends Component
     }
 
     #[Computed]
+    public function shop(): ?Shop
+    {
+        return $this->shopId ? Shop::find($this->shopId) : null;
+    }
+
+    #[Computed]
     public function ga4Properties(): array
     {
-        return (new GoogleAccountDiscoveryService(Auth::user()))->getAccessibleGa4Properties();
+        $context = $this->shop ?? Auth::user();
+
+        return (new GoogleAccountDiscoveryService($context))->getAccessibleGa4Properties();
     }
 
     #[Computed]
     public function adsCustomers(): array
     {
-        return (new GoogleAccountDiscoveryService(Auth::user()))->getAccessibleAdsCustomers();
+        $context = $this->shop ?? Auth::user();
+
+        return (new GoogleAccountDiscoveryService($context))->getAccessibleAdsCustomers();
     }
 
     #[Computed]
     public function searchConsoleSites(): array
     {
-        return (new GoogleAccountDiscoveryService(Auth::user()))->getAccessibleSearchConsoleSites();
+        $context = $this->shop ?? Auth::user();
+
+        return (new GoogleAccountDiscoveryService($context))->getAccessibleSearchConsoleSites();
+    }
+
+    #[Computed]
+    public function merchantAccounts(): array
+    {
+        $context = $this->shop ?? Auth::user();
+
+        return (new GoogleAccountDiscoveryService($context))->getAccessibleMerchantAccounts();
     }
 
     public function save(): void
@@ -92,6 +115,7 @@ new #[Title('Shop Settings')] class extends Component
             'ga4_property_id' => $this->ga4PropertyId ?: null,
             'google_ads_customer_id' => $this->adsCustomerId ?: null,
             'search_console_url' => $this->searchConsoleUrl ?: null,
+            'merchant_center_id' => $this->merchantCenterId ?: null,
             'base_instructions' => $this->baseInstructions ?: null,
             'brand_guidelines' => $this->brandGuidelines ?: null,
             'target_roas' => $this->targetRoas ?: null,
@@ -116,115 +140,51 @@ new #[Title('Shop Settings')] class extends Component
     }
 }; ?>
 
-<div class="p-6 max-w-4xl">
-    <div class="mb-6">
-        <flux:heading size="xl">Shop Settings</flux:heading>
-        <flux:text class="mt-1 text-zinc-500">Configure your shop details and Google integrations.</flux:text>
+<section class="w-full">
+    <div class="relative mb-6 w-full">
+        <div class="px-6 pt-6">
+            <flux:heading size="xl" level="1">Shop Settings</flux:heading>
+            <flux:subheading size="lg" class="mb-6">Configure your shop details and integrations.</flux:subheading>
+        </div>
+        <flux:separator variant="subtle" />
     </div>
 
-    @if($this->isFirstShop)
-        <flux:callout icon="information-circle" color="blue" class="mb-6">
-            <flux:callout.heading>Welcome! Let's set up your first shop.</flux:callout.heading>
-            <flux:callout.text>
-                Give your shop a name and connect your Google accounts. You can update these settings at any time.
-            </flux:callout.text>
-        </flux:callout>
+    @if(session('status') === 'google-connected')
+        <div class="px-6 mb-2">
+            <flux:callout icon="check-circle" color="green">
+                <flux:callout.text>Google account connected successfully.</flux:callout.text>
+            </flux:callout>
+        </div>
     @endif
 
-    <form wire:submit="save" class="space-y-6">
-        {{-- Identity + Locale --}}
-        <flux:card class="p-5">
-            <flux:heading class="mb-4">Identity</flux:heading>
-            <div class="grid grid-cols-2 gap-4">
-                <flux:input wire:model="name" label="Shop Name" placeholder="My Online Store" required />
-                <flux:input wire:model="url" label="Website URL" placeholder="https://mystore.com" type="url" />
-                <flux:select wire:model="timezone" label="Timezone">
-                    @foreach(timezone_identifiers_list() as $tz)
-                        <flux:select.option value="{{ $tz }}">{{ $tz }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:select wire:model="currency" label="Currency">
-                    <flux:select.option value="USD">USD — US Dollar</flux:select.option>
-                    <flux:select.option value="EUR">EUR — Euro</flux:select.option>
-                    <flux:select.option value="GBP">GBP — British Pound</flux:select.option>
-                    <flux:select.option value="AUD">AUD — Australian Dollar</flux:select.option>
-                    <flux:select.option value="CAD">CAD — Canadian Dollar</flux:select.option>
-                    <flux:select.option value="JPY">JPY — Japanese Yen</flux:select.option>
-                    <flux:select.option value="CHF">CHF — Swiss Franc</flux:select.option>
-                    <flux:select.option value="NZD">NZD — New Zealand Dollar</flux:select.option>
-                    <flux:select.option value="SGD">SGD — Singapore Dollar</flux:select.option>
-                    <flux:select.option value="HKD">HKD — Hong Kong Dollar</flux:select.option>
-                </flux:select>
-            </div>
-        </flux:card>
+    @if($this->isFirstShop)
+        <div class="px-6 pb-6">
+            <flux:callout icon="information-circle" color="blue" class="mb-6">
+                <flux:callout.heading>Welcome! Let's set up your first shop.</flux:callout.heading>
+                <flux:callout.text>
+                    Give your shop a name and connect your Google accounts. You can update these settings at any time.
+                </flux:callout.text>
+            </flux:callout>
 
-        {{-- Google Integrations --}}
-        <flux:card class="p-5">
-            <flux:heading class="mb-4">Google Integrations</flux:heading>
-            <div class="grid grid-cols-3 gap-4">
-                <flux:select wire:model="ga4PropertyId" label="GA4 Property">
-                    <flux:select.option value="">— Not linked —</flux:select.option>
-                    @foreach($this->ga4Properties as $property)
-                        <flux:select.option value="{{ $property['id'] }}">
-                            {{ $property['name'] }} ({{ $property['account_name'] }})
-                        </flux:select.option>
-                    @endforeach
-                </flux:select>
+            <form wire:submit="save" class="space-y-6 max-w-lg">
+                @include('pages.shop._general-form')
 
-                <flux:select wire:model="adsCustomerId" label="Google Ads">
-                    <flux:select.option value="">— Not linked —</flux:select.option>
-                    @foreach($this->adsCustomers as $customer)
-                        <flux:select.option value="{{ $customer['id'] }}">{{ $customer['name'] }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-
-                <flux:select wire:model="searchConsoleUrl" label="Search Console">
-                    <flux:select.option value="">— Not linked —</flux:select.option>
-                    @foreach($this->searchConsoleSites as $site)
-                        <flux:select.option value="{{ $site['url'] }}">{{ $site['url'] }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-            </div>
-        </flux:card>
-
-        {{-- AI Settings --}}
-        <flux:card class="p-5">
-            <flux:heading class="mb-4">AI Settings</flux:heading>
-            <div class="grid grid-cols-2 gap-4">
-                <flux:input
-                    wire:model="targetRoas"
-                    label="Target ROAS"
-                    placeholder="e.g. 4.0"
-                    badge="optional"
-                />
-                <div></div>
-                <flux:textarea
-                    wire:model="baseInstructions"
-                    label="Base Instructions"
-                    placeholder="General instructions for Cameron when managing this shop..."
-                    rows="3"
-                    badge="optional"
-                />
-                <flux:textarea
-                    wire:model="brandGuidelines"
-                    label="Brand Guidelines"
-                    placeholder="Tone of voice, target audience, messaging..."
-                    rows="3"
-                    badge="optional"
-                />
-            </div>
-        </flux:card>
-
-        <div class="flex items-center gap-4">
-            <flux:button type="submit" variant="primary">
-                {{ $this->isFirstShop ? 'Create Shop' : 'Save Changes' }}
-            </flux:button>
-
-            @unless($this->isFirstShop)
-                <x-action-message on="shop-saved">
-                    Saved.
-                </x-action-message>
-            @endunless
+                <flux:button type="submit" variant="primary">Create Shop</flux:button>
+            </form>
         </div>
-    </form>
-</div>
+    @else
+        <x-pages::shop.settings-layout heading="General" subheading="Update your shop details and Google integrations.">
+            <form wire:submit="save" class="my-6 w-full space-y-6">
+                @include('pages.shop._general-form')
+
+                <div class="flex items-center gap-4">
+                    <flux:button type="submit" variant="primary">Save Changes</flux:button>
+
+                    <x-action-message on="shop-saved">
+                        Saved.
+                    </x-action-message>
+                </div>
+            </form>
+        </x-pages::shop.settings-layout>
+    @endif
+</section>

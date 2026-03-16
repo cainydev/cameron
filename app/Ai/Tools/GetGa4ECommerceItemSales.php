@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Dimension;
 use Google\Analytics\Data\V1beta\Metric;
@@ -16,9 +18,18 @@ use Stringable;
 /**
  * Fetches GA4 e-commerce item sales data (item name, revenue, quantity) for a date range.
  */
+#[Category(ToolCategory::GoogleAnalytics)]
 class GetGa4ECommerceItemSales extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'GA4 Item Sales';
+    }
 
     /**
      * Get the description of the tool's purpose.

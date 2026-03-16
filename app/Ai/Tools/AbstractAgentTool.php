@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Ai\Concerns\CachesApiResponses;
+use App\Ai\Concerns\RateLimitsGoogleApi;
 use App\Enums\AgentTaskStatus;
 use App\Enums\ApprovalStatus;
+use App\Enums\ToolCategory;
 use App\Events\ApprovalRequired;
 use App\Models\AgentTask;
 use App\Models\PendingApproval;
@@ -14,6 +18,7 @@ use App\Services\GoogleApiService;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
+use ReflectionClass;
 use Stringable;
 
 /**
@@ -25,6 +30,8 @@ use Stringable;
  */
 abstract class AbstractAgentTool implements Tool
 {
+    use CachesApiResponses, RateLimitsGoogleApi;
+
     /**
      * Whether this tool requires human approval before execution.
      */
@@ -36,6 +43,12 @@ abstract class AbstractAgentTool implements Tool
     protected bool $isReadOnly = false;
 
     /**
+     * Whether this tool should be hidden from the chat UI.
+     * Hidden tools still execute normally — they just aren't surfaced to the user.
+     */
+    protected bool $hidden = false;
+
+    /**
      * The active task ID for the current agent execution context.
      */
     protected ?int $activeTaskId = null;
@@ -44,6 +57,26 @@ abstract class AbstractAgentTool implements Tool
      * The shop context for this tool invocation.
      */
     protected ?Shop $shop = null;
+
+    /**
+     * Whether this tool should be hidden from the chat UI tool call display.
+     */
+    public function isHidden(): bool
+    {
+        return $this->hidden;
+    }
+
+    /**
+     * A human-readable label for this tool, optionally derived from its arguments.
+     * Shown in the chat UI when the tool is invoked.
+     *
+     * @param  array<string, mixed>  $arguments
+     */
+    public function label(array $arguments = []): string
+    {
+        // Default: convert CamelCase class name to "Title Case Words"
+        return (string) preg_replace('/(?<!^)[A-Z]/', ' $0', class_basename(static::class));
+    }
 
     /**
      * Execute the tool's core business logic.
@@ -73,6 +106,44 @@ abstract class AbstractAgentTool implements Tool
     }
 
     /**
+     * Resolve the tool's category from the #[Category] attribute.
+     */
+    public function category(): ?ToolCategory
+    {
+        $ref = new ReflectionClass(static::class);
+        $attrs = $ref->getAttributes(Category::class);
+
+        if ($attrs === []) {
+            return null;
+        }
+
+        return $attrs[0]->newInstance()->category;
+    }
+
+    /**
+     * Shop fields that must be non-null for this tool to be available.
+     * Defaults to the category's requiredShopField(). Override for special cases.
+     *
+     * @return list<string>
+     */
+    public function requiredShopFields(): array
+    {
+        $field = $this->category()?->requiredShopField();
+
+        return $field ? [$field] : [];
+    }
+
+    /**
+     * Override the approval requirement at runtime.
+     */
+    public function setRequiresApproval(bool $requires): static
+    {
+        $this->requiresApproval = $requires;
+
+        return $this;
+    }
+
+    /**
      * Build a GoogleApiService authenticated as the shop's owner,
      * falling back to the currently authenticated user when running in web context.
      */
@@ -96,7 +167,9 @@ abstract class AbstractAgentTool implements Tool
         }
 
         try {
-            $result = $this->execute($request->toArray());
+            $this->checkRateLimit();
+
+            $result = $this->cached($request->toArray(), fn () => $this->execute($request->toArray()));
         } catch (\RuntimeException $e) {
             return $e->getMessage();
         }

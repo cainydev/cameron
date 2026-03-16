@@ -67,6 +67,8 @@ class EvaluateSingleGoal implements ShouldQueue
             return;
         }
 
+        $this->goal->update(['last_checked_at' => now()]);
+
         if ($this->allConditionsPass($this->goal->conditions, $sensorData)) {
             $this->handleSuccess();
 

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
 use App\Enums\AgentTaskStatus;
+use App\Enums\ToolCategory;
 use App\Models\AgentTask;
 use App\Models\ResourceLock;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -17,9 +19,18 @@ use Stringable;
  * This is the tool the TaskWorker agent calls when it has finished
  * taking corrective actions and considers the issue resolved.
  */
+#[Category(ToolCategory::System)]
 class MarkTaskAsResolved extends AbstractAgentTool
 {
     protected bool $requiresApproval = false;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Mark Task Resolved';
+    }
 
     /**
      * Get the description of the tool's purpose.

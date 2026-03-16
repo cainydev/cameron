@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use App\Models\CameronMemory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,12 @@ use Stringable;
 /**
  * Persists a finding or insight into Cameron's long-term memory for this shop.
  */
+#[Category(ToolCategory::Memory)]
 class RememberFinding extends AbstractAgentTool
 {
     protected bool $isReadOnly = false;
+
+    protected bool $hidden = true;
 
     /**
      * Get the description of the tool's purpose.

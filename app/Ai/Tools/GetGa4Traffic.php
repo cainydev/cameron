@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Metric;
 use Google\Analytics\Data\V1beta\RunReportRequest;
@@ -13,9 +15,22 @@ use Stringable;
 /**
  * Fetches GA4 traffic metrics (sessions + pageviews) for the shop's property and a given date range.
  */
+#[Category(ToolCategory::GoogleAnalytics)]
 class GetGa4Traffic extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        if (! empty($arguments['startDate']) && ! empty($arguments['endDate'])) {
+            return "GA4 Traffic ({$arguments['startDate']} – {$arguments['endDate']})";
+        }
+
+        return 'GA4 Traffic';
+    }
 
     /**
      * Get the description of the tool's purpose.

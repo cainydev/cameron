@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Shop;
 use App\Models\User;
 use Google\Ads\GoogleAds\Lib\V20\GoogleAdsClient;
 use Google\Ads\GoogleAds\Lib\V20\GoogleAdsClientBuilder;
@@ -12,16 +13,21 @@ use Google\Auth\Credentials\UserRefreshCredentials;
 use Google\Auth\OAuth2;
 use Google\Client;
 use Google\Service\Webmasters;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Http;
 
 /**
- * Provides authenticated Google API client instances for a given user.
+ * Provides authenticated Google API client instances for a given shop or user.
+ *
+ * Prefers the shop-level refresh token when a shop is provided,
+ * falling back to the user-level token for backwards-compatibility.
  */
 class GoogleApiService
 {
-    public function __construct(private User $user) {}
+    public function __construct(private Shop|User $context) {}
 
     /**
-     * Build a base Google API client authenticated via the user's refresh token.
+     * Build a base Google API client authenticated via the context's refresh token.
      *
      * @param  string[]  $scopes
      */
@@ -33,7 +39,7 @@ class GoogleApiService
         $client->setScopes($scopes ?: config('google.scopes'));
         $client->setAccessType('offline');
 
-        $client->fetchAccessTokenWithRefreshToken($this->user->google_refresh_token);
+        $client->fetchAccessTokenWithRefreshToken($this->refreshToken());
 
         return $client;
     }
@@ -48,7 +54,7 @@ class GoogleApiService
             [
                 'client_id' => $this->getOAuthClientId(),
                 'client_secret' => $this->getOAuthClientSecret(),
-                'refresh_token' => $this->user->google_refresh_token,
+                'refresh_token' => $this->refreshToken(),
             ]
         );
 
@@ -63,7 +69,7 @@ class GoogleApiService
         $oAuth2Credential = (new OAuth2([
             'clientId' => $this->getOAuthClientId(),
             'clientSecret' => $this->getOAuthClientSecret(),
-            'refresh_token' => $this->user->google_refresh_token,
+            'refresh_token' => $this->refreshToken(),
             'tokenCredentialUri' => 'https://oauth2.googleapis.com/token',
         ]));
 
@@ -86,6 +92,30 @@ class GoogleApiService
         $client = $this->makeGoogleClient(['https://www.googleapis.com/auth/webmasters.readonly']);
 
         return new Webmasters($client);
+    }
+
+    /**
+     * Build an authenticated HTTP client pre-configured for the Merchant API v1beta.
+     */
+    public function makeMerchantApiClient(): PendingRequest
+    {
+        $googleClient = $this->makeGoogleClient(['https://www.googleapis.com/auth/content']);
+        $token = $googleClient->getAccessToken();
+
+        return Http::withToken($token['access_token'])
+            ->baseUrl('https://merchantapi.googleapis.com/');
+    }
+
+    /**
+     * Resolve the refresh token from the shop (preferred) or user context.
+     */
+    private function refreshToken(): string
+    {
+        $token = $this->context instanceof Shop
+            ? ($this->context->google_refresh_token ?? $this->context->user?->google_refresh_token)
+            : $this->context->google_refresh_token;
+
+        return $token ?? throw new \RuntimeException('No Google refresh token available.');
     }
 
     /**

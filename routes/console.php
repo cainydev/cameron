@@ -15,9 +15,10 @@ Artisan::command('inspire', function () {
 | Goal Evaluation Dispatcher
 |--------------------------------------------------------------------------
 |
-| Runs hourly. First deactivates any expired temporal goals, then dispatches
-| a queued EvaluateSingleGoal job for each remaining active goal. This
-| ensures sensor I/O is handled by the queue worker, not the scheduler.
+| Runs every minute. First deactivates any expired temporal goals, then
+| dispatches a queued EvaluateSingleGoal job for each active goal that is
+| due for its next check based on its individual check_frequency_minutes.
+| Sensor I/O is handled by the queue worker, not the scheduler.
 |
 */
 Schedule::call(function () {
@@ -29,5 +30,6 @@ Schedule::call(function () {
 
     AgentGoal::query()
         ->where('is_active', true)
+        ->dueForCheck()
         ->each(fn (AgentGoal $goal) => EvaluateSingleGoal::dispatch($goal));
-})->hourly()->name('goal-evaluation-dispatcher')->withoutOverlapping();
+})->everyMinute()->name('goal-evaluation-dispatcher')->withoutOverlapping();

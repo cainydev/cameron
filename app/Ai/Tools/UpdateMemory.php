@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use App\Models\CameronMemory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,12 @@ use Stringable;
 /**
  * Updates an existing Cameron memory entry — corrects outdated content or recategorises it.
  */
+#[Category(ToolCategory::Memory)]
 class UpdateMemory extends AbstractAgentTool
 {
     protected bool $isReadOnly = false;
+
+    protected bool $hidden = true;
 
     /**
      * Get the description of the tool's purpose.

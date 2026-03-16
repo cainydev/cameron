@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -12,9 +14,18 @@ use Stringable;
 /**
  * Fetches the shop's homepage HTML and scans it for GA4 and GTM tracking snippets.
  */
+#[Category(ToolCategory::GoogleAnalytics)]
 class VerifyGa4TagPresence extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Verify GA4 Tag';
+    }
 
     /**
      * Get the description of the tool's purpose.

@@ -3,7 +3,7 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="h-dvh overflow-hidden bg-white dark:bg-zinc-800">
+    <body class="min-h-dvh bg-white dark:bg-zinc-800">
         <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <flux:sidebar.brand :name="config('app.name')" href="{{ route('cameron') }}" wire:navigate>
@@ -36,18 +36,20 @@
                 @if($tasks->isNotEmpty())
                     <flux:sidebar.group heading="Task Agents" class="grid mt-2">
                         @foreach($tasks as $task)
-                            <flux:sidebar.item
-                                :icon="match($task->status->value) {
+                            @php
+                                $taskIcon = match($task->status->value) {
                                     'running' => 'loading',
                                     'waiting_approval' => 'clock',
-                                    'completed' => 'check-circle-solid',
-                                    'failed' => 'x-circle-solid',
-                                    default => 'circle'
-                                }"
+                                    'completed' => 'check-circle',
+                                    'failed' => 'x-circle',
+                                    default => 'circle-stack',
+                                };
+                            @endphp
+                            <flux:sidebar.item
+                                :icon="$taskIcon"
                                 :badge="$task->status->value === 'waiting_approval' ? '!' : null"
                                 badge:color="amber"
                                 :href="route('agent', $task->id)"
-                                :current="request()->routeIs('agent', $task->id)"
                                 wire:navigate
                             >
                                 <div class="flex items-center gap-2 w-full">

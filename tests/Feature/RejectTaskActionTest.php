@@ -1,7 +1,7 @@
 <?php
 
 use App\Actions\Agent\RejectTaskAction;
-use App\Ai\Tools\PauseGoogleAdCampaign;
+use App\Ai\Tools\UpdateAdsCampaignStatus;
 use App\Enums\AgentTaskStatus;
 use App\Enums\ApprovalStatus;
 use App\Jobs\RunTaskWorkerStep;
@@ -14,7 +14,7 @@ beforeEach(function () {
 
 it('marks approval as rejected', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
     ]);
 
     (new RejectTaskAction($approval))->handle();
@@ -24,7 +24,7 @@ it('marks approval as rejected', function () {
 
 it('does not call execute on the tool', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
     ]);
 
     // No mock expectation for execute — it must NOT be called
@@ -35,7 +35,7 @@ it('does not call execute on the tool', function () {
 
 it('sets task status to running', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
     ]);
 
     (new RejectTaskAction($approval))->handle();
@@ -45,7 +45,7 @@ it('sets task status to running', function () {
 
 it('dispatches RunTaskWorkerStep with inject message containing REJECTED', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
     ]);
 
     (new RejectTaskAction($approval))->handle();
@@ -58,7 +58,7 @@ it('dispatches RunTaskWorkerStep with inject message containing REJECTED', funct
 
 it('includes humanMessage reason in inject message when provided', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
     ]);
 
     (new RejectTaskAction($approval, humanMessage: 'Budget concerns.'))->handle();

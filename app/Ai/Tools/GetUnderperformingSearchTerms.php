@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,18 @@ use Stringable;
 /**
  * Finds Google Ads search terms that spent money without generating conversions.
  */
+#[Category(ToolCategory::GoogleAds)]
 class GetUnderperformingSearchTerms extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Underperforming Search Terms';
+    }
 
     /**
      * Get the description of the tool's purpose.

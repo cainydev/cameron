@@ -27,6 +27,8 @@ class AgentGoalFactory extends Factory
             'is_active' => true,
             'expires_at' => null,
             'is_one_off' => false,
+            'check_frequency_minutes' => 60,
+            'last_checked_at' => null,
             'completed_at' => null,
         ];
     }

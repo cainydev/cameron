@@ -21,15 +21,21 @@ it('deactivates expired temporal goals', function () {
         ->and($active->refresh()->is_active)->toBeTrue();
 });
 
-it('dispatches a job for each active goal', function () {
+it('dispatches a job for each active goal that is due for a check', function () {
     Queue::fake();
 
-    AgentGoal::factory()->count(3)->create();
+    // Never checked — all due.
+    AgentGoal::factory()->count(2)->create(['last_checked_at' => null]);
+    // Checked recently — not due yet.
+    AgentGoal::factory()->create(['last_checked_at' => now()->subMinutes(30), 'check_frequency_minutes' => 60]);
+    // Checked long ago — due.
+    AgentGoal::factory()->create(['last_checked_at' => now()->subMinutes(90), 'check_frequency_minutes' => 60]);
     AgentGoal::factory()->inactive()->create();
 
     // Simulate the dispatcher's dispatch logic.
     AgentGoal::query()
         ->where('is_active', true)
+        ->dueForCheck()
         ->each(fn (AgentGoal $goal) => EvaluateSingleGoal::dispatch($goal));
 
     Queue::assertCount(3);
@@ -40,7 +46,7 @@ it('does not dispatch jobs for expired goals after deactivation', function () {
     Queue::fake();
 
     AgentGoal::factory()->expired()->count(2)->create();
-    AgentGoal::factory()->create(); // one active, non-expired
+    AgentGoal::factory()->create(); // one active, non-expired, never checked
 
     // Simulate full dispatcher: expire first, then dispatch.
     AgentGoal::query()
@@ -51,6 +57,7 @@ it('does not dispatch jobs for expired goals after deactivation', function () {
 
     AgentGoal::query()
         ->where('is_active', true)
+        ->dueForCheck()
         ->each(fn (AgentGoal $goal) => EvaluateSingleGoal::dispatch($goal));
 
     Queue::assertCount(1);

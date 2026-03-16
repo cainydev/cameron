@@ -21,7 +21,7 @@ class PendingApprovalFactory extends Factory
     {
         return [
             'task_id' => AgentTask::factory(),
-            'tool_class' => 'App\\Ai\\Tools\\PauseGoogleAdCampaign',
+            'tool_class' => 'App\\Ai\\Tools\\UpdateAdsCampaignStatus',
             'payload' => ['campaign_id' => fake()->randomNumber(5)],
             'reasoning' => fake()->sentence(),
             'expires_at' => now()->addHours(24),

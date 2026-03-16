@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace App\Ai\Agents;
 
-use App\Ai\Tools\AddGoalMemory;
-use App\Ai\Tools\GetUnderperformingSearchTerms;
-use App\Ai\Tools\MarkTaskAsResolved;
-use App\Ai\Tools\PauseGoogleAdCampaign;
-use App\Ai\Tools\ReadAdsKnowledge;
-use App\Ai\Tools\UpdateAdsCampaignStatus;
-use App\Ai\Tools\UpdateKeywordBid;
+use App\Ai\ToolRegistry;
+use App\Enums\ToolCategory;
 use App\Models\Shop;
 use Illuminate\Support\Facades\File;
 use Laravel\Ai\Attributes\MaxSteps;
+use Laravel\Ai\Attributes\Model;
 use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Concerns\RemembersConversations;
 use Laravel\Ai\Contracts\Agent;
@@ -30,6 +26,7 @@ use Stringable;
  * Signals completion by calling the MarkTaskAsResolved tool rather than
  * returning structured output, giving it a multi-step tool-use loop.
  */
+#[Model('gemini-3.1-flash-lite-preview')]
 #[MaxSteps(1)]
 #[Timeout(120)]
 class TaskWorker implements Agent, Conversational, HasTools
@@ -98,22 +95,14 @@ class TaskWorker implements Agent, Conversational, HasTools
      */
     public function tools(): iterable
     {
-        $shop = $this->shop;
+        if (! $this->shop) {
+            return [];
+        }
 
-        $googleTools = $shop
-            ? [
-                (new UpdateAdsCampaignStatus)->forTask($this->taskId)->forShop($shop),
-                (new GetUnderperformingSearchTerms)->forShop($shop),
-                (new UpdateKeywordBid)->forTask($this->taskId)->forShop($shop),
-            ]
-            : [];
-
-        return [
-            (new PauseGoogleAdCampaign)->forTask($this->taskId),
-            ...$googleTools,
-            new ReadAdsKnowledge,
-            (new AddGoalMemory)->forTask($this->taskId),
-            (new MarkTaskAsResolved)->forTask($this->taskId),
-        ];
+        return app(ToolRegistry::class)
+            ->forShop($this->shop)
+            ->forTask($this->taskId)
+            ->inCategories([ToolCategory::GoogleAds, ToolCategory::System])
+            ->resolve();
     }
 }

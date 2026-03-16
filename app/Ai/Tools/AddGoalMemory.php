@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use App\Models\AgentGoalMemory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,11 +13,14 @@ use Stringable;
 /**
  * Records a valuable insight for a goal so future workers can learn from it.
  */
+#[Category(ToolCategory::System)]
 class AddGoalMemory extends AbstractAgentTool
 {
     protected bool $isReadOnly = false;
 
     protected bool $requiresApproval = false;
+
+    protected bool $hidden = true;
 
     /**
      * Get the description of the tool's purpose.

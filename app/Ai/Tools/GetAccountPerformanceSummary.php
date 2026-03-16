@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Metric;
@@ -14,9 +16,28 @@ use Stringable;
 /**
  * Fetches a high-level account performance summary combining GA4 traffic and Google Ads spend/conversions.
  */
+#[Category(ToolCategory::AccountOverview)]
 class GetAccountPerformanceSummary extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * This tool requires both GA4 and Google Ads connections.
+     *
+     * @return list<string>
+     */
+    public function requiredShopFields(): array
+    {
+        return ['ga4_property_id', 'google_ads_customer_id'];
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Account Performance Summary';
+    }
 
     /**
      * Get the description of the tool's purpose.

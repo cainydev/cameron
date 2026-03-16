@@ -151,7 +151,7 @@ new class extends Component
             @if($task->status->value === 'failed')
                 <flux:timeline.item>
                     <flux:timeline.indicator color="red">
-                        <flux:icon name="x" variant="micro" />
+                        <flux:icon name="x-mark" variant="micro" />
                     </flux:timeline.indicator>
                     <flux:timeline.content>
                         <flux:heading class="text-sm">Failed</flux:heading>
@@ -162,11 +162,11 @@ new class extends Component
         </flux:timeline>
 
         <!-- Pending Approvals -->
-        @if($task->pendingApprovals->whereStatus(ApprovalStatus::Waiting)->isNotEmpty())
+        @if($task->pendingApprovals->where('status', ApprovalStatus::Waiting)->isNotEmpty())
             <div class="mt-6">
                 <flux:heading class="text-sm">Pending Approvals</flux:heading>
                 <div class="space-y-3 mt-3">
-                    @foreach($task->pendingApprovals->whereStatus(ApprovalStatus::Waiting) as $approval)
+                    @foreach($task->pendingApprovals->where('status', ApprovalStatus::Waiting) as $approval)
                         <flux:callout variant="warning" icon="clock">
                             <flux:callout.heading>
                                 {{ class_basename($approval->tool_class) }}
@@ -215,9 +215,9 @@ new class extends Component
                     @foreach($task->pendingApprovals->where('status', '!=', ApprovalStatus::Waiting) as $approval)
                         <div class="flex items-center gap-2 text-sm p-2 rounded bg-zinc-50 dark:bg-zinc-800">
                             @if($approval->status->value === 'approved')
-                                <flux:icon name="check-circle-solid" class="text-green-500" variant="micro" />
+                                <flux:icon name="check-circle" class="text-green-500" variant="micro" />
                             @else
-                                <flux:icon name="x-circle-solid" class="text-red-500" variant="micro" />
+                                <flux:icon name="x-circle" class="text-red-500" variant="micro" />
                             @endif
                             <span>{{ class_basename($approval->tool_class) }}</span>
                             <flux:badge size="sm" :color="$approval->status->value === 'approved' ? 'green' : 'red'">

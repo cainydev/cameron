@@ -134,6 +134,21 @@ it('does not spawn duplicate tasks when resource is already locked', function ()
     expect(AgentTask::query()->count())->toBe(1);
 });
 
+it('stamps last_checked_at after evaluation', function () {
+    $goal = AgentGoal::factory()->create([
+        'sensor_tool_class' => FakePassingSensor::class,
+        'conditions' => [
+            ['metric' => 'roas', 'operator' => '>=', 'value' => 3.0],
+        ],
+        'last_checked_at' => null,
+    ]);
+
+    EvaluateSingleGoal::dispatchSync($goal);
+
+    expect($goal->refresh()->last_checked_at)->not->toBeNull()
+        ->and($goal->last_checked_at->toDateTimeString())->toBe('2026-06-15 12:00:00');
+});
+
 it('skips goals with invalid sensor classes gracefully', function () {
     $goal = AgentGoal::factory()->create([
         'sensor_tool_class' => 'App\\Ai\\Tools\\NonExistentSensor',

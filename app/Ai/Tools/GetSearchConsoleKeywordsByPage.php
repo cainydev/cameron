@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Service\Webmasters\SearchAnalyticsQueryRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,18 @@ use Stringable;
 /**
  * Fetches search keywords broken down by page from Google Search Console.
  */
+#[Category(ToolCategory::SearchConsole)]
 class GetSearchConsoleKeywordsByPage extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Search Console Keywords by Page';
+    }
 
     /**
      * Get the description of the tool's purpose.

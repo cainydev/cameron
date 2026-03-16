@@ -70,17 +70,22 @@ it('has tools', function () {
     expect(new TaskWorker(goalContext: '{}', taskId: 1))->toBeInstanceOf(HasTools::class);
 });
 
-it('always includes MarkTaskAsResolved', function () {
-    $tools = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1))->tools());
+it('always includes MarkTaskAsResolved when a shop is given', function () {
+    $tools = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1, shop: Shop::factory()->make()))->tools());
 
     expect(array_map(fn ($t) => $t::class, $tools))->toContain(MarkTaskAsResolved::class);
 });
 
-it('has more tools when a shop is given', function () {
-    $withoutShop = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1))->tools());
+it('returns no tools when no shop is given', function () {
+    $tools = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1))->tools());
+
+    expect($tools)->toBeEmpty();
+});
+
+it('has tools when a shop is given', function () {
     $withShop = iterator_to_array((new TaskWorker(goalContext: '{}', taskId: 1, shop: Shop::factory()->make()))->tools());
 
-    expect(count($withShop))->toBeGreaterThan(count($withoutShop));
+    expect(count($withShop))->toBeGreaterThan(0);
 });
 
 it('has at least one write tool when a shop is given', function () {

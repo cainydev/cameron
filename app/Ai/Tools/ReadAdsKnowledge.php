@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\File;
 use Stringable;
@@ -11,9 +13,32 @@ use Stringable;
 /**
  * Returns specialist Google Ads knowledge from the internal guideline library.
  */
+#[Category(ToolCategory::GoogleAds)]
 class ReadAdsKnowledge extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        if (! empty($arguments['topic'])) {
+            return 'Ads Knowledge: '.ucfirst($arguments['topic']);
+        }
+
+        return 'Ads Knowledge';
+    }
+
+    /**
+     * This tool reads local knowledge files and does not require any shop fields.
+     *
+     * @return list<string>
+     */
+    public function requiredShopFields(): array
+    {
+        return [];
+    }
 
     /**
      * Get the description of the tool's purpose.

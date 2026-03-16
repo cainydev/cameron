@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -12,9 +14,24 @@ use Stringable;
 /**
  * Fetches and cleans the HTML content of a web page for SEO analysis.
  */
+#[Category(ToolCategory::Website)]
 class GetPageHtmlContent extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        if (! empty($arguments['url'])) {
+            $host = parse_url($arguments['url'], PHP_URL_HOST) ?? $arguments['url'];
+
+            return "Fetch Page: {$host}";
+        }
+
+        return 'Fetch Page';
+    }
 
     /**
      * Get the description of the tool's purpose.

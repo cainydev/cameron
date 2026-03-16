@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
 use App\Enums\ApprovalStatus;
+use App\Enums\ToolCategory;
 use App\Models\PendingApproval;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -12,9 +14,18 @@ use Stringable;
 /**
  * Retrieves all pending approvals awaiting human review.
  */
+#[Category(ToolCategory::Goals)]
 class GetPendingApprovals extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Pending Approvals';
+    }
 
     /**
      * Get the description of the tool's purpose.

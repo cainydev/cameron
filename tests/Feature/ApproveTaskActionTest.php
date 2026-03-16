@@ -1,7 +1,7 @@
 <?php
 
 use App\Actions\Agent\ApproveTaskAction;
-use App\Ai\Tools\PauseGoogleAdCampaign;
+use App\Ai\Tools\UpdateAdsCampaignStatus;
 use App\Enums\AgentTaskStatus;
 use App\Enums\ApprovalStatus;
 use App\Jobs\RunTaskWorkerStep;
@@ -16,11 +16,11 @@ beforeEach(function () {
 
 it('marks approval as approved', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
         'payload' => ['campaign_id' => 123, 'reason' => 'Low ROAS'],
     ]);
 
-    mock(PauseGoogleAdCampaign::class)
+    mock(UpdateAdsCampaignStatus::class)
         ->shouldReceive('execute')
         ->once()
         ->with($approval->payload);
@@ -32,27 +32,27 @@ it('marks approval as approved', function () {
 
 it('calls execute on the tool class with stored payload', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
         'payload' => ['campaign_id' => 456, 'reason' => 'Test'],
     ]);
 
-    $toolMock = mock(PauseGoogleAdCampaign::class)
+    $toolMock = mock(UpdateAdsCampaignStatus::class)
         ->shouldReceive('execute')
         ->once()
         ->with(['campaign_id' => 456, 'reason' => 'Test'])
         ->getMock();
 
-    app()->instance(PauseGoogleAdCampaign::class, $toolMock);
+    app()->instance(UpdateAdsCampaignStatus::class, $toolMock);
 
     (new ApproveTaskAction($approval))->handle();
 });
 
 it('sets task status to running', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
     ]);
 
-    mock(PauseGoogleAdCampaign::class)->shouldReceive('execute')->once();
+    mock(UpdateAdsCampaignStatus::class)->shouldReceive('execute')->once();
 
     (new ApproveTaskAction($approval))->handle();
 
@@ -61,10 +61,10 @@ it('sets task status to running', function () {
 
 it('dispatches RunTaskWorkerStep with inject message containing APPROVED', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
     ]);
 
-    mock(PauseGoogleAdCampaign::class)->shouldReceive('execute')->once();
+    mock(UpdateAdsCampaignStatus::class)->shouldReceive('execute')->once();
 
     (new ApproveTaskAction($approval))->handle();
 
@@ -76,10 +76,10 @@ it('dispatches RunTaskWorkerStep with inject message containing APPROVED', funct
 
 it('includes humanMessage in inject message when provided', function () {
     $approval = PendingApproval::factory()->create([
-        'tool_class' => PauseGoogleAdCampaign::class,
+        'tool_class' => UpdateAdsCampaignStatus::class,
     ]);
 
-    mock(PauseGoogleAdCampaign::class)->shouldReceive('execute')->once();
+    mock(UpdateAdsCampaignStatus::class)->shouldReceive('execute')->once();
 
     (new ApproveTaskAction($approval, humanMessage: 'Please proceed carefully.'))->handle();
 

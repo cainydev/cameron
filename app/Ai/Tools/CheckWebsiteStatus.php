@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -12,9 +14,18 @@ use Stringable;
 /**
  * Checks whether the shop's website is reachable and returns the HTTP status code and response time.
  */
+#[Category(ToolCategory::Website)]
 class CheckWebsiteStatus extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Check Website Status';
+    }
 
     /**
      * Get the description of the tool's purpose.

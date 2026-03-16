@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Service\Webmasters\SearchAnalyticsQueryRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,18 @@ use Stringable;
 /**
  * Fetches top search keywords from Google Search Console for the shop's site.
  */
+#[Category(ToolCategory::SearchConsole)]
 class GetSearchConsoleKeywords extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Search Console Keywords';
+    }
 
     /**
      * Get the description of the tool's purpose.

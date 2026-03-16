@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Ads\GoogleAds\V20\Resources\AdGroupCriterion;
 use Google\Ads\GoogleAds\V20\Services\AdGroupCriterionOperation;
 use Google\Ads\GoogleAds\V20\Services\MutateAdGroupCriteriaRequest;
@@ -16,9 +18,24 @@ use Stringable;
  *
  * Requires human approval before execution.
  */
+#[Category(ToolCategory::GoogleAds)]
 class UpdateKeywordBid extends AbstractAgentTool
 {
     protected bool $requiresApproval = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        if (! empty($arguments['criterionId']) && ! empty($arguments['newCpcBidMicros'])) {
+            $bidDollars = number_format($arguments['newCpcBidMicros'] / 1_000_000, 2);
+
+            return "Update Keyword #{$arguments['criterionId']} Bid → \${$bidDollars}";
+        }
+
+        return 'Update Keyword Bid';
+    }
 
     /**
      * Get the description of the tool's purpose.

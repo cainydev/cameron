@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Dimension;
 use Google\Analytics\Data\V1beta\Filter;
@@ -18,9 +20,22 @@ use Stringable;
 /**
  * Fetches GA4 conversion event data for the shop's property and a given date range.
  */
+#[Category(ToolCategory::GoogleAnalytics)]
 class GetGa4Conversions extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        if (! empty($arguments['eventName'])) {
+            return "GA4 Conversions: {$arguments['eventName']}";
+        }
+
+        return 'GA4 Conversions';
+    }
 
     /**
      * Get the description of the tool's purpose.

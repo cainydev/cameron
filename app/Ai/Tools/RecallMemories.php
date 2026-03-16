@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use App\Models\CameronMemory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,12 @@ use Stringable;
 /**
  * Retrieves Cameron's stored memories for this shop, optionally filtered by category.
  */
+#[Category(ToolCategory::Memory)]
 class RecallMemories extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    protected bool $hidden = true;
 
     /**
      * Get the description of the tool's purpose.

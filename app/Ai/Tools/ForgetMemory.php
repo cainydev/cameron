@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use App\Models\CameronMemory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,12 @@ use Stringable;
 /**
  * Deletes a Cameron memory entry that is no longer relevant.
  */
+#[Category(ToolCategory::Memory)]
 class ForgetMemory extends AbstractAgentTool
 {
     protected bool $isReadOnly = false;
+
+    protected bool $hidden = true;
 
     /**
      * Get the description of the tool's purpose.

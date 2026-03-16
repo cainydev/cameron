@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Attributes\Category;
+use App\Enums\ToolCategory;
 use App\Models\AgentGoal;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
@@ -11,9 +13,18 @@ use Stringable;
 /**
  * Retrieves a summary of all active agent goals.
  */
+#[Category(ToolCategory::Goals)]
 class GetActiveGoalsSummary extends AbstractAgentTool
 {
     protected bool $isReadOnly = true;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function label(array $arguments = []): string
+    {
+        return 'Active Goals';
+    }
 
     /**
      * Get the description of the tool's purpose.
@@ -34,7 +45,7 @@ class GetActiveGoalsSummary extends AbstractAgentTool
         return AgentGoal::query()
             ->where('is_active', true)
             ->withCount('tasks')
-            ->get(['id', 'name', 'conditions', 'is_one_off', 'expires_at', 'created_at'])
+            ->get(['id', 'name', 'conditions', 'is_one_off', 'expires_at', 'check_frequency_minutes', 'last_checked_at', 'created_at'])
             ->toArray();
     }
 

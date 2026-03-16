@@ -4,26 +4,27 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Shop;
 use App\Models\User;
 use Google\Ads\GoogleAds\V20\Services\ListAccessibleCustomersRequest;
 use Google\Service\GoogleAnalyticsAdmin;
 
 /**
- * Discovers accessible Google accounts (Ads, Search Console, GA4) for a user.
+ * Discovers accessible Google accounts (Ads, Search Console, GA4) for a shop or user.
  */
 class GoogleAccountDiscoveryService
 {
-    public function __construct(private User $user) {}
+    public function __construct(private Shop|User $context) {}
 
     /**
-     * Return all Google Ads customer accounts accessible by the user.
+     * Return all Google Ads customer accounts accessible by the context.
      *
      * @return array<int, array{id: string, name: string}>
      */
     public function getAccessibleAdsCustomers(): array
     {
         try {
-            $service = new GoogleApiService($this->user);
+            $service = new GoogleApiService($this->context);
             $adsClient = $service->makeAdsClient();
 
             $response = $adsClient->getCustomerServiceClient()->listAccessibleCustomers(
@@ -38,22 +39,20 @@ class GoogleAccountDiscoveryService
             }
 
             return $customers;
-        } catch (\Google\Service\Exception $e) {
-            return [];
         } catch (\Exception $e) {
             return [];
         }
     }
 
     /**
-     * Return all Search Console sites accessible by the user.
+     * Return all Search Console sites accessible by the context.
      *
      * @return array<int, array{url: string, permissionLevel: string}>
      */
     public function getAccessibleSearchConsoleSites(): array
     {
         try {
-            $service = new GoogleApiService($this->user);
+            $service = new GoogleApiService($this->context);
             $webmasters = $service->makeSearchConsoleClient();
 
             $response = $webmasters->sites->listSites();
@@ -68,22 +67,49 @@ class GoogleAccountDiscoveryService
             }
 
             return $sites;
-        } catch (\Google\Service\Exception $e) {
-            return [];
         } catch (\Exception $e) {
             return [];
         }
     }
 
     /**
-     * Return all GA4 properties accessible by the user, grouped under their accounts.
+     * Return all Merchant Center accounts accessible by the context via the Merchant API v1beta.
+     *
+     * @return array<int, array{id: string, name: string}>
+     */
+    public function getAccessibleMerchantAccounts(): array
+    {
+        try {
+            $client = (new GoogleApiService($this->context))->makeMerchantApiClient();
+            $response = $client->get('accounts/v1beta/accounts');
+
+            if ($response->failed()) {
+                return [];
+            }
+
+            $accounts = [];
+
+            foreach ($response->json('accounts', []) as $account) {
+                $id = (string) $account['accountId'];
+                $name = $account['accountName'] ?? $id;
+                $accounts[] = ['id' => $id, 'name' => "{$name} ({$id})"];
+            }
+
+            return $accounts;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Return all GA4 properties accessible by the context, grouped under their accounts.
      *
      * @return array<int, array{id: string, name: string, account_name: string}>
      */
     public function getAccessibleGa4Properties(): array
     {
         try {
-            $service = new GoogleApiService($this->user);
+            $service = new GoogleApiService($this->context);
             $googleClient = $service->makeGoogleClient(['https://www.googleapis.com/auth/analytics.readonly']);
             $adminService = new GoogleAnalyticsAdmin($googleClient);
 
@@ -105,8 +131,6 @@ class GoogleAccountDiscoveryService
             }
 
             return $properties;
-        } catch (\Google\Service\Exception $e) {
-            return [];
         } catch (\Exception $e) {
             return [];
         }
