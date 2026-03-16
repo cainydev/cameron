@@ -36,7 +36,7 @@ class GetAuctionInsights extends AbstractAgentTool
 
     /**
      * @param  array{startDate: string, endDate: string, campaignId?: string, limit?: int}  $arguments
-     * @return array<int, array{domain: string, impressionShare: float, overlapRate: float, positionAboveRate: float, topOfPageRate: float, absTopOfPageRate: float}>
+     * @return array<int, array{domain: string, impressionShare: float, overlapRate: float, positionAboveRate: float, topOfPageRate: float, absTopOfPageRate: float, outrankingShare: float}>
      */
     public function execute(array $arguments): array
     {
@@ -51,12 +51,13 @@ class GetAuctionInsights extends AbstractAgentTool
             $whereClause .= " AND campaign.id = {$arguments['campaignId']}";
         }
 
-        $query = "SELECT auction_insight_performance_view.display_name,
+        $query = "SELECT segments.auction_insight_domain,
                          metrics.auction_insight_search_impression_share,
                          metrics.auction_insight_search_overlap_rate,
                          metrics.auction_insight_search_position_above_rate,
                          metrics.auction_insight_search_top_impression_percentage,
-                         metrics.auction_insight_search_abs_top_impression_percentage
+                         metrics.auction_insight_search_absolute_top_impression_percentage,
+                         metrics.auction_insight_search_outranking_share
                   FROM auction_insight_performance_view
                   {$whereClause}
                   ORDER BY metrics.auction_insight_search_impression_share DESC
@@ -73,16 +74,16 @@ class GetAuctionInsights extends AbstractAgentTool
         $results = [];
 
         foreach ($response->iterateAllElements() as $row) {
-            $view = $row->getAuctionInsightPerformanceView();
             $metrics = $row->getMetrics();
 
             $results[] = [
-                'domain' => $view->getDisplayName(),
+                'domain' => $row->getSegments()->getAuctionInsightDomain(),
                 'impressionShare' => $metrics->getAuctionInsightSearchImpressionShare(),
                 'overlapRate' => $metrics->getAuctionInsightSearchOverlapRate(),
                 'positionAboveRate' => $metrics->getAuctionInsightSearchPositionAboveRate(),
                 'topOfPageRate' => $metrics->getAuctionInsightSearchTopImpressionPercentage(),
-                'absTopOfPageRate' => $metrics->getAuctionInsightSearchAbsTopImpressionPercentage(),
+                'absTopOfPageRate' => $metrics->getAuctionInsightSearchAbsoluteTopImpressionPercentage(),
+                'outrankingShare' => $metrics->getAuctionInsightSearchOutrankingShare(),
             ];
         }
 
