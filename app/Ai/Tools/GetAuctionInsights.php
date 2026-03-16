@@ -7,6 +7,7 @@ namespace App\Ai\Tools;
 use App\Ai\Attributes\Category;
 use App\Enums\ToolCategory;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
+use Google\ApiCore\ApiException;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Stringable;
 
@@ -68,8 +69,15 @@ class GetAuctionInsights extends AbstractAgentTool
             'query' => $query,
         ]);
 
-        $response = $this->googleApiService()->makeAdsClient()
-            ->getGoogleAdsServiceClient()->search($request);
+        try {
+            $response = $this->googleApiService()->makeAdsClient()
+                ->getGoogleAdsServiceClient()->search($request);
+        } catch (ApiException $e) {
+            if (str_contains($e->getMessage(), 'METRIC_ACCESS_DENIED')) {
+                throw new \RuntimeException('Auction insight metrics require Standard Access on the Google Ads developer token. Apply at Google Ads → Tools → API Center.');
+            }
+            throw $e;
+        }
 
         $results = [];
 
