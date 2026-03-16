@@ -60,7 +60,8 @@ class GetMerchantProducts extends AbstractAgentTool
         $response = $client->get("products/v1beta/accounts/{$merchantId}/products", $params);
 
         if ($response->failed()) {
-            throw new \RuntimeException("Merchant API error: HTTP {$response->status()}");
+            $error = $response->json('error.message') ?? $response->body();
+            throw new \RuntimeException("Merchant API error {$response->status()}: {$error}");
         }
 
         $products = [];
