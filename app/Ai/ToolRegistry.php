@@ -199,8 +199,14 @@ class ToolRegistry
         $toolsPath = app_path('Ai/Tools');
         $classes = [];
 
-        foreach (glob($toolsPath.'/*.php') as $file) {
-            $className = 'App\\Ai\\Tools\\'.basename($file, '.php');
+        $files = array_merge(
+            glob($toolsPath.'/*.php') ?: [],
+            glob($toolsPath.'/*/*.php') ?: [],
+        );
+
+        foreach ($files as $file) {
+            $relative = str_replace([app_path('Ai/Tools').DIRECTORY_SEPARATOR, '.php'], '', $file);
+            $className = 'App\\Ai\\Tools\\'.str_replace(DIRECTORY_SEPARATOR, '\\', $relative);
 
             if (! class_exists($className)) {
                 continue;

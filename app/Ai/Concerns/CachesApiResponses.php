@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Ai\Concerns;
 
-use App\Enums\ToolCategory;
 use Illuminate\Support\Facades\Cache;
 
 trait CachesApiResponses
@@ -41,14 +40,6 @@ trait CachesApiResponses
      */
     private function cacheTtl(): ?int
     {
-        $category = $this->category();
-
-        return match ($category) {
-            ToolCategory::GoogleAnalytics => 300,
-            ToolCategory::SearchConsole => 600,
-            ToolCategory::GoogleAds => 180,
-            ToolCategory::Website => 60,
-            default => null,
-        };
+        return null;
     }
 }

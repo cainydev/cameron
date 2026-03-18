@@ -4,64 +4,26 @@
         @include('partials.head')
     </head>
     <body class="min-h-dvh bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar sticky collapsible class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 [:where(&)]:w-72">
             <flux:sidebar.header>
                 <flux:sidebar.brand :name="config('app.name')" href="{{ route('cameron') }}" wire:navigate>
                     <x-slot name="logo" class="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-md">
                         <img src="{{ Vite::asset('resources/images/cameron.png') }}" alt="{{ config('app.name') }}" class="size-full object-cover">
                     </x-slot>
                 </flux:sidebar.brand>
-                <flux:sidebar.collapse class="lg:hidden" />
+                <flux:sidebar.collapse />
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
                 <!-- Main Navigation -->
-                <flux:sidebar.item icon="home" :href="route('cameron')" :current="request()->routeIs('cameron')" wire:navigate>
-                    Cameron
-                </flux:sidebar.item>
-                <flux:sidebar.item icon="flag" :href="route('goals')" :current="request()->routeIs('goals')" wire:navigate>
+                <flux:sidebar.item icon="flag" :href="route('goals')" :current="request()->routeIs('goals') || request()->routeIs('goal')" wire:navigate>
                     Goals
                 </flux:sidebar.item>
 
-                <!-- Task Agents -->
-                @php
-                    $tasks = \App\Models\AgentTask::query()
-                        ->with('goal')
-                        ->whereHas('goal.shop', fn ($q) => $q->where('user_id', auth()->id()))
-                        ->orderByRaw("CASE WHEN status = 'waiting_approval' THEN 1 WHEN status = 'running' THEN 2 WHEN status = 'pending' THEN 3 ELSE 4 END")
-                        ->orderByDesc('updated_at')
-                        ->get();
-                @endphp
-
-                @if($tasks->isNotEmpty())
-                    <flux:sidebar.group heading="Task Agents" class="grid mt-2">
-                        @foreach($tasks as $task)
-                            @php
-                                $taskIcon = match($task->status->value) {
-                                    'running' => 'loading',
-                                    'waiting_approval' => 'clock',
-                                    'completed' => 'check-circle',
-                                    'failed' => 'x-circle',
-                                    default => 'circle-stack',
-                                };
-                            @endphp
-                            <flux:sidebar.item
-                                :icon="$taskIcon"
-                                :badge="$task->status->value === 'waiting_approval' ? '!' : null"
-                                badge:color="amber"
-                                :href="route('agent', $task->id)"
-                                wire:navigate
-                            >
-                                <div class="flex items-center gap-2 w-full">
-                                    <span class="truncate">{{ $task->goal->name }}</span>
-                                    @if($task->status->value === 'running')
-                                        <flux:icon name="loading" class="animate-spin flex-shrink-0" variant="micro" />
-                                    @endif
-                                </div>
-                            </flux:sidebar.item>
-                        @endforeach
-                    </flux:sidebar.group>
-                @endif
+                <!-- Cameron Chats -->
+                <flux:sidebar.group class="grid mt-2">
+                    <livewire:conversation-list />
+                </flux:sidebar.group>
             </flux:sidebar.nav>
 
             <flux:spacer />

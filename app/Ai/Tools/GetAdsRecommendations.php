@@ -43,12 +43,15 @@ class GetAdsRecommendations extends AbstractAgentTool
         $customerId = $this->shop?->google_ads_customer_id
             ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
 
-        $limit = $arguments['limit'] ?? 10;
+        $limit = $arguments['limit'] ?? 50;
 
         $whereClause = 'WHERE recommendation.type != UNKNOWN';
 
         if (! empty($arguments['types'])) {
-            $types = implode("', '", $arguments['types']);
+            $rawTypes = is_array($arguments['types'])
+                ? $arguments['types']
+                : array_map('trim', explode(',', (string) $arguments['types']));
+            $types = implode("', '", $rawTypes);
             $whereClause = "WHERE recommendation.type IN ('{$types}')";
         }
 
@@ -85,7 +88,7 @@ class GetAdsRecommendations extends AbstractAgentTool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'types' => $schema->array()->items($schema->string()),
+            'types' => $schema->string()->description('Comma-separated recommendation types to filter on (e.g. "KEYWORD,CAMPAIGN_BUDGET"). Omit for all types.'),
             'limit' => $schema->integer(),
         ];
     }

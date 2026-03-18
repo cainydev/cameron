@@ -78,6 +78,37 @@
     </div>
 </flux:card>
 
+{{-- Shopware Integration --}}
+<flux:card class="p-5">
+    <flux:heading class="mb-4">Shopware Integration</flux:heading>
+    <div class="grid grid-cols-2 gap-4">
+        <flux:input
+            wire:model="shopwareUrl"
+            label="Shop URL"
+            placeholder="https://my-shop.example.com"
+            type="url"
+            class="col-span-2"
+        />
+        <flux:input
+            wire:model="shopwareClientId"
+            label="Client ID"
+            placeholder="Integration client ID"
+        />
+        <flux:input
+            wire:model="shopwareClientSecret"
+            label="Client Secret"
+            placeholder="Integration client secret"
+            type="password"
+            viewable
+        />
+    </div>
+    @if($this->shopId)
+        <flux:text class="mt-3 text-xs text-zinc-500">
+            Create an Integration in your Shopware admin under Settings → Integrations. Use the generated client ID and client secret above.
+        </flux:text>
+    @endif
+</flux:card>
+
 {{-- AI Settings --}}
 <flux:card class="p-5">
     <flux:heading class="mb-4">AI Settings</flux:heading>

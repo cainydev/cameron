@@ -149,9 +149,9 @@ abstract class AbstractAgentTool implements Tool
      */
     protected function googleApiService(): GoogleApiService
     {
-        $user = $this->shop?->user ?? Auth::user();
+        $context = $this->shop ?? Auth::user();
 
-        return new GoogleApiService($user);
+        return new GoogleApiService($context);
     }
 
     /**
@@ -174,7 +174,11 @@ abstract class AbstractAgentTool implements Tool
             return $e->getMessage();
         }
 
-        return json_encode($result, JSON_THROW_ON_ERROR);
+        if (is_string($result) || $result instanceof Stringable) {
+            return (string) $result;
+        }
+
+        return json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 
     /**

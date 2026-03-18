@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Tools;
 
 use App\Ai\Attributes\Category;
+use App\Ai\Concerns\FormatsToolOutput;
 use App\Enums\ToolCategory;
 use Google\Service\Webmasters\SearchAnalyticsQueryRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -16,6 +17,8 @@ use Stringable;
 #[Category(ToolCategory::SearchConsole)]
 class GetSearchConsoleKeywords extends AbstractAgentTool
 {
+    use FormatsToolOutput;
+
     protected bool $isReadOnly = true;
 
     /**
@@ -45,7 +48,7 @@ class GetSearchConsoleKeywords extends AbstractAgentTool
         $siteUrl = $this->shop?->search_console_url
             ?? throw new \RuntimeException('Shop has no Search Console URL configured.');
 
-        $limit = $arguments['limit'] ?? 5;
+        $limit = $arguments['limit'] ?? 100;
 
         $service = $this->googleApiService();
         $webmasters = $service->makeSearchConsoleClient();
@@ -63,10 +66,10 @@ class GetSearchConsoleKeywords extends AbstractAgentTool
         foreach ($response->getRows() as $row) {
             $rows[] = [
                 'query' => $row->getKeys()[0] ?? '',
-                'clicks' => $row->getClicks(),
-                'impressions' => $row->getImpressions(),
-                'ctr' => $row->getCtr(),
-                'position' => $row->getPosition(),
+                'clicks' => (int) $row->getClicks(),
+                'impressions' => (int) $row->getImpressions(),
+                'ctr' => $this->toPercent($row->getCtr()),
+                'position' => $this->toPosition($row->getPosition()),
             ];
         }
 

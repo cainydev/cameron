@@ -50,7 +50,7 @@ class GetGa4ECommerceItemSales extends AbstractAgentTool
         $propertyId = $this->shop?->ga4_property_id
             ?? throw new \RuntimeException('Shop has no GA4 property ID configured.');
 
-        $limit = $arguments['limit'] ?? 10;
+        $limit = $arguments['limit'] ?? 100;
 
         $service = $this->googleApiService();
         $client = $service->makeAnalyticsClient();
@@ -89,8 +89,8 @@ class GetGa4ECommerceItemSales extends AbstractAgentTool
 
             $rows[] = [
                 'itemName' => $dimensions[0]->getValue(),
-                'itemRevenue' => $metrics[0]->getValue(),
-                'itemsPurchased' => $metrics[1]->getValue(),
+                'itemRevenue' => round((float) $metrics[0]->getValue(), 2),
+                'itemsPurchased' => (int) $metrics[1]->getValue(),
             ];
         }
 

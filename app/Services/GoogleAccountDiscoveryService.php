@@ -73,7 +73,7 @@ class GoogleAccountDiscoveryService
     }
 
     /**
-     * Return all Merchant Center accounts accessible by the context via the Merchant API v1beta.
+     * Return all Merchant Center accounts accessible by the context via the Merchant API v1.
      *
      * @return array<int, array{id: string, name: string}>
      */
@@ -81,7 +81,7 @@ class GoogleAccountDiscoveryService
     {
         try {
             $client = (new GoogleApiService($this->context))->makeMerchantApiClient();
-            $response = $client->get('accounts/v1beta/accounts');
+            $response = $client->get('accounts/v1/accounts');
 
             if ($response->failed()) {
                 return [];

@@ -43,7 +43,7 @@ class GetMerchantProducts extends AbstractAgentTool
 
     /**
      * @param  array{pageSize?: int, pageToken?: string}  $arguments
-     * @return array{merchantId: string, products: array<int, array{id: string, offerId: string, title: string, brand: string|null, availability: string|null, price: string|null, channel: string}>}
+     * @return array{merchantId: string, products: array<int, array{id: string, offerId: string, title: string, brand: string|null, availability: string|null, price: string|null, feedLabel: string|null}>}
      */
     public function execute(array $arguments): array
     {
@@ -57,7 +57,7 @@ class GetMerchantProducts extends AbstractAgentTool
         }
 
         $client = $this->googleApiService()->makeMerchantApiClient();
-        $response = $client->get("products/v1beta/accounts/{$merchantId}/products", $params);
+        $response = $client->get("products/v1/accounts/{$merchantId}/products", $params);
 
         if ($response->failed()) {
             $error = $response->json('error.message') ?? $response->body();
@@ -67,17 +67,17 @@ class GetMerchantProducts extends AbstractAgentTool
         $products = [];
 
         foreach ($response->json('products', []) as $product) {
-            $attrs = $product['attributes'] ?? [];
+            $attrs = $product['productAttributes'] ?? [];
             $price = $attrs['price'] ?? null;
 
+            $fullName = $product['name'] ?? '';
             $products[] = [
-                'id' => $product['name'] ?? '',
-                'offerId' => $product['offerId'] ?? '',
+                'id' => $product['offerId'] ?? basename($fullName),
                 'title' => $attrs['title'] ?? '',
                 'brand' => $attrs['brand'] ?? null,
                 'availability' => $attrs['availability'] ?? null,
-                'price' => $price ? ($price['amountMicros'] / 1_000_000).' '.$price['currencyCode'] : null,
-                'channel' => $product['channel'] ?? '',
+                'price' => $price ? round($price['amountMicros'] / 1_000_000, 2).' '.$price['currencyCode'] : null,
+                'feedLabel' => $product['feedLabel'] ?? null,
             ];
         }
 

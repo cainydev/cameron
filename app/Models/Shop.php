@@ -34,6 +34,9 @@ class Shop extends Model
         'base_instructions',
         'brand_guidelines',
         'target_roas',
+        'shopware_url',
+        'shopware_client_id',
+        'shopware_client_secret',
     ];
 
     /**
@@ -43,6 +46,7 @@ class Shop extends Model
      */
     protected $hidden = [
         'google_refresh_token',
+        'shopware_client_secret',
     ];
 
     /**
@@ -51,6 +55,13 @@ class Shop extends Model
     public function hasGoogleConnected(): bool
     {
         return ! empty($this->google_refresh_token);
+    }
+
+    public function hasShopwareConnected(): bool
+    {
+        return ! empty($this->shopware_url)
+            && ! empty($this->shopware_client_id)
+            && ! empty($this->shopware_client_secret);
     }
 
     /**

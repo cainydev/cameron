@@ -43,7 +43,7 @@ class GetMerchantProductIssues extends AbstractAgentTool
 
     /**
      * @param  array{pageSize?: int, pageToken?: string}  $arguments
-     * @return array{merchantId: string, products: array<int, array{id: string, title: string, issues: array<int, array{code: string, attribute: string|null, severity: string, reportingContexts: list<string>}>}>}
+     * @return array{merchantId: string, products: array<int, array{id: string, title: string, issues: array<int, array{code: string, attribute: string|null, severity: string, contexts: list<string>}>}>}
      */
     public function execute(array $arguments): array
     {
@@ -55,7 +55,7 @@ class GetMerchantProductIssues extends AbstractAgentTool
         $body = [
             'query' => "SELECT product_view.id, product_view.title, product_view.item_issues
                         FROM product_view
-                        WHERE product_view.item_issues IS NOT NULL
+                        WHERE product_view.aggregated_reporting_context_status = 'NOT_ELIGIBLE_OR_DISAPPROVED'
                         LIMIT {$pageSize}",
         ];
 
@@ -64,7 +64,7 @@ class GetMerchantProductIssues extends AbstractAgentTool
         }
 
         $client = $this->googleApiService()->makeMerchantApiClient();
-        $response = $client->post("reports/v1beta/accounts/{$merchantId}/reports:search", $body);
+        $response = $client->post("reports/v1/accounts/{$merchantId}/reports:search", $body);
 
         if ($response->failed()) {
             $error = $response->json('error.message') ?? $response->body();
@@ -78,17 +78,11 @@ class GetMerchantProductIssues extends AbstractAgentTool
             $issues = [];
 
             foreach ($view['itemIssues'] ?? [] as $issue) {
-                $contexts = [];
-
-                foreach ($issue['severity']['severityPerReportingContext'] ?? [] as $ctx) {
-                    $contexts[] = $ctx['reportingContext'];
-                }
-
                 $issues[] = [
                     'code' => $issue['type']['code'] ?? '',
                     'attribute' => $issue['type']['canonicalAttribute'] ?? null,
                     'severity' => $issue['severity']['maxSeverity'] ?? 'UNKNOWN',
-                    'reportingContexts' => $contexts,
+                    'contexts' => array_column($issue['severity']['severityPerReportingContext'] ?? [], 'reportingContext'),
                 ];
             }
 

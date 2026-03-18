@@ -35,6 +35,12 @@ new #[Title('Shop Settings')] class extends Component
 
     public string $targetRoas = '';
 
+    public string $shopwareUrl = '';
+
+    public string $shopwareClientId = '';
+
+    public string $shopwareClientSecret = '';
+
     public function mount(): void
     {
         $shop = Auth::user()->shops()->first();
@@ -52,6 +58,9 @@ new #[Title('Shop Settings')] class extends Component
             $this->baseInstructions = $shop->base_instructions ?? '';
             $this->brandGuidelines = $shop->brand_guidelines ?? '';
             $this->targetRoas = $shop->target_roas ?? '';
+            $this->shopwareUrl = $shop->shopware_url ?? '';
+            $this->shopwareClientId = $shop->shopware_client_id ?? '';
+            // Secret is intentionally not pre-filled for security
         }
     }
 
@@ -119,7 +128,14 @@ new #[Title('Shop Settings')] class extends Component
             'base_instructions' => $this->baseInstructions ?: null,
             'brand_guidelines' => $this->brandGuidelines ?: null,
             'target_roas' => $this->targetRoas ?: null,
+            'shopware_url' => $this->shopwareUrl ?: null,
+            'shopware_client_id' => $this->shopwareClientId ?: null,
         ];
+
+        // Only update the secret if a new value was provided
+        if ($this->shopwareClientSecret !== '') {
+            $data['shopware_client_secret'] = $this->shopwareClientSecret;
+        }
 
         $isCreating = $this->shopId === null;
 

@@ -2,6 +2,7 @@
 
 use App\Ai\Agents\CameronChat as CameronChatAgent;
 use App\Ai\Tools\AbstractAgentTool;
+use App\Jobs\GenerateConversationTitle;
 use App\Models\AgentConversation;
 use App\Models\AgentConversationMessage;
 use App\Models\Shop;
@@ -11,6 +12,7 @@ use Laravel\Ai\Exceptions\RateLimitedException;
 use Laravel\Ai\Streaming\Events\ToolCall as ToolCallEvent;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
@@ -24,21 +26,26 @@ new class extends Component
 
     public string $streamingResponse = '';
 
-    public function mount(): void
-    {
-        $conversation = AgentConversation::query()
-            ->where('user_id', Auth::id())
-            ->latest('updated_at')
-            ->first();
+    public bool $proMode = false;
 
-        if ($conversation) {
-            $this->conversationId = $conversation->id;
+    public function mount(?string $conversation = null): void
+    {
+        if (! $conversation) {
+            return;
+        }
+
+        $exists = AgentConversation::query()
+            ->where('id', $conversation)
+            ->where('user_id', Auth::id())
+            ->exists();
+
+        if ($exists) {
+            $this->conversationId = $conversation;
         }
     }
 
     /**
      * Build a per-message tool label+hidden map from its stored tool_calls and tool_results.
-     * Accepts a message's tool_calls array and the agent's tools list.
      *
      * @param  array<int, array{name: string, arguments: array<string, mixed>}>  $toolCalls
      * @param  iterable<\App\Ai\Tools\AbstractAgentTool>  $tools
@@ -99,13 +106,24 @@ new class extends Component
             ->get();
     }
 
+    #[Computed]
+    public function currentConversation(): ?AgentConversation
+    {
+        if (! $this->conversationId) {
+            return null;
+        }
+
+        return AgentConversation::query()->find($this->conversationId);
+    }
+
     public function sendMessage(string $promptText): void
     {
         $promptText = trim($promptText);
 
-        validator(['prompt' => $promptText], ['prompt' => 'required|string|min:1|max:10000'])->validate();
+        validator(['prompt' => $promptText], ['prompt' => 'required|string|min:1'])->validate();
 
         $user = Auth::user();
+        $isNewConversation = $this->conversationId === null;
         $this->isProcessing = true;
         $this->streamingResponse = '';
         $this->prompt = '';
@@ -114,24 +132,36 @@ new class extends Component
             $shop = Shop::query()->where('user_id', Auth::id())->with('user')->firstOrFail();
             $agent = new CameronChatAgent($shop);
 
-            // Build a lookup of tool name → tool instance for label/hidden resolution.
             /** @var array<string, AbstractAgentTool> $toolsByName */
             $toolsByName = collect($agent->tools())
                 ->filter(fn ($t) => $t instanceof AbstractAgentTool)
                 ->keyBy(fn (AbstractAgentTool $t) => (new \ReflectionClass($t))->getShortName())
                 ->all();
 
+            $model = $this->proMode ? 'gemini-3.1-pro-preview' : 'gemini-3.1-flash-lite-preview';
+
             if ($this->conversationId) {
                 $stream = $agent->continue($this->conversationId, as: $user)
-                    ->stream($promptText);
+                    ->stream($promptText, model: $model);
             } else {
                 $stream = $agent->forUser($user)
-                    ->stream($promptText);
+                    ->stream($promptText, model: $model);
             }
 
-            $stream->then(function ($response) {
+            $stream->then(function ($response) use ($promptText, $isNewConversation) {
                 if (! $this->conversationId) {
                     $this->conversationId = $response->conversationId;
+                }
+
+                // Dispatch title generation for new conversations
+                if ($isNewConversation && $this->conversationId) {
+                    GenerateConversationTitle::dispatch($this->conversationId, $promptText);
+                }
+
+                // Redirect to the conversation URL so the sidebar syncs
+                if ($isNewConversation && $this->conversationId) {
+                    $this->dispatch('conversation-created');
+                    $this->redirect(route('cameron', $this->conversationId), navigate: true);
                 }
             });
 
@@ -169,19 +199,21 @@ new class extends Component
         } finally {
             $this->isProcessing = false;
             $this->dispatch('message-done');
+            unset($this->chatMessages, $this->currentConversation);
         }
     }
 
     public function startNewConversation(): void
     {
-        if ($this->conversationId) {
-            AgentConversationMessage::query()->where('conversation_id', $this->conversationId)->delete();
-            AgentConversation::query()->where('id', $this->conversationId)->delete();
-        }
+        $this->redirect(route('cameron'), navigate: true);
+    }
 
-        $this->conversationId = null;
-        $this->streamingResponse = '';
-        unset($this->chatMessages);
+    #[On('conversation-deleted')]
+    public function onConversationDeleted(string $id): void
+    {
+        if ($this->conversationId === $id) {
+            $this->redirect(route('cameron'), navigate: true);
+        }
     }
 };
 ?>
@@ -259,23 +291,42 @@ new class extends Component
     "
 >
     <!-- Header -->
-    <div class="fixed top-0 right-0 left-0 lg:left-64 z-10 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-6 py-3">
+    <div class="fixed top-0 right-0 left-0 lg:left-72 z-10 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-6 py-3">
         <div class="flex items-center gap-3">
             <flux:avatar initials="C" class="bg-indigo-500" />
             <div>
-                <flux:heading>Cameron</flux:heading>
+                <flux:heading>
+                    {{ $this->currentConversation?->title ?? 'Cameron' }}
+                </flux:heading>
                 <flux:text class="text-xs">Front-Desk Manager</flux:text>
             </div>
         </div>
-        <flux:button
-            variant="ghost"
-            size="sm"
-            icon="plus"
-            wire:click="startNewConversation"
-            wire:confirm="Start a new conversation?"
-        >
-            New Chat
-        </flux:button>
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 p-0.5">
+                <button
+                    type="button"
+                    wire:click="$set('proMode', false)"
+                    class="px-3 py-1 rounded-md text-xs font-medium transition-colors {{ ! $proMode ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300' }}"
+                >
+                    Lite
+                </button>
+                <button
+                    type="button"
+                    wire:click="$set('proMode', true)"
+                    class="px-3 py-1 rounded-md text-xs font-medium transition-colors {{ $proMode ? 'bg-indigo-500 text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300' }}"
+                >
+                    Pro
+                </button>
+            </div>
+            <flux:button
+                variant="ghost"
+                size="sm"
+                icon="plus"
+                wire:click="startNewConversation"
+            >
+                New Chat
+            </flux:button>
+        </div>
     </div>
 
     <!-- Messages -->
@@ -285,7 +336,7 @@ new class extends Component
                     @if($message->role === 'user')
                         <div class="flex justify-end" data-role="user">
                             <div class="max-w-[75%] bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-tr-sm px-4 py-3">
-                                <x-markdown class="prose prose-base prose-zinc dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{{ $message->content }}</x-markdown>
+                                <x-markdown class="prose prose-base prose-zinc dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">{!! $message->content !!}</x-markdown>
                                 <flux:text class="text-xs text-zinc-400 dark:text-zinc-500 mt-2 block text-right">
                                     {{ $message->created_at->format('g:i A') }}
                                 </flux:text>
@@ -300,7 +351,9 @@ new class extends Component
                                         $shop = \App\Models\Shop::query()->where('user_id', \Illuminate\Support\Facades\Auth::id())->with('user')->first();
                                         $agentTools = $shop ? (new \App\Ai\Agents\CameronChat($shop))->tools() : [];
                                         $toolMeta = $this->resolveToolMeta($message->tool_calls, $agentTools);
-                                        $visibleCalls = array_filter($message->tool_calls, fn ($c) => ! ($toolMeta[$c['name'] ?? '']['hidden'] ?? false));
+                                        $visibleCalls = app()->isLocal()
+                                            ? $message->tool_calls
+                                            : array_filter($message->tool_calls, fn ($c) => ! ($toolMeta[$c['name'] ?? '']['hidden'] ?? false));
                                     @endphp
                                     @if(count($visibleCalls) > 0)
                                         <div class="flex flex-wrap gap-1.5 mb-2">
@@ -311,8 +364,13 @@ new class extends Component
                                                     $callArgs = json_encode($call['arguments'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
                                                     $resultData = collect($message->tool_results ?? [])
                                                         ->firstWhere('name', $callName);
+                                                    $rawResult = $resultData['result'] ?? null;
+                                                    if (is_string($rawResult)) {
+                                                        $decoded = json_decode($rawResult, true);
+                                                        $rawResult = $decoded ?? $rawResult;
+                                                    }
                                                     $resultJson = $resultData
-                                                        ? json_encode($resultData['result'] ?? null, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)
+                                                        ? json_encode($rawResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
                                                         : '';
                                                 @endphp
                                                 @php
@@ -320,9 +378,10 @@ new class extends Component
                                                     $pillIcon = $toolMeta[$callName]['icon'] ?? 'sparkles';
                                                     $pillClasses = $this->toolColorClasses($pillColor);
                                                 @endphp
+                                                @php $isHidden = $toolMeta[$callName]['hidden'] ?? false; @endphp
                                                 <button
                                                     type="button"
-                                                    class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border transition-colors cursor-pointer {{ $pillClasses }}"
+                                                    class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border transition-colors cursor-pointer {{ $pillClasses }} {{ $isHidden ? 'opacity-40' : '' }}"
                                                     x-on:click="openToolModal(
                                                         {{ Js::from($callLabel) }},
                                                         {{ Js::from($callArgs) }},
@@ -336,7 +395,7 @@ new class extends Component
                                         </div>
                                     @endif
                                 @endif
-                                <x-markdown class="prose prose-base prose-zinc dark:prose-invert max-w-none">{{ $message->content }}</x-markdown>
+                                <x-markdown class="prose prose-base prose-zinc dark:prose-invert max-w-none">{!! $message->content !!}</x-markdown>
                                 <flux:text class="text-xs text-zinc-400 dark:text-zinc-500 mt-1 block">
                                     {{ $message->created_at->format('g:i A') }}
                                 </flux:text>
@@ -362,7 +421,7 @@ new class extends Component
                     </div>
                 </template>
 
-                {{-- Live tool calls + thinking dots — hidden once streaming starts --}}
+                {{-- Live tool calls + thinking dots --}}
                 <template x-if="thinking && !streaming">
                     <div class="flex items-start gap-3">
                         <img src="{{ Vite::asset('resources/images/cameron_sm.png') }}" alt="Cameron" class="size-7 rounded-full shrink-0 mt-0.5">
@@ -389,7 +448,7 @@ new class extends Component
                 {{-- Hidden wire:stream targets --}}
                 <div class="hidden" wire:stream="live-tool-calls"></div>
 
-                {{-- Streaming response — always in DOM so wire:stream can target it --}}
+                {{-- Streaming response --}}
                 <div
                     class="flex items-start gap-3"
                     x-show="streaming"
@@ -423,7 +482,7 @@ new class extends Component
         :disabled="$isProcessing"
         :rows="1"
         :max-rows="6"
-        class="fixed! bottom-5 left-4 right-4 lg:left-68 z-20 max-w-2xl mx-auto bg-white dark:bg-zinc-800"
+        class="fixed! bottom-5 left-4 right-4 lg:left-72 z-20 max-w-2xl mx-auto bg-white dark:bg-zinc-800"
         x-init="
             $nextTick(() => {
                 const ta = $el.querySelector('textarea');
@@ -456,7 +515,7 @@ new class extends Component
         x-on:keydown.escape.window="toolModal.open = false"
         x-on:click.self="toolModal.open = false"
     >
-        <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+        <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
             <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
                 <div class="flex items-center gap-2">
                     <flux:icon name="sparkles" variant="micro" class="size-4 text-indigo-500 shrink-0" />
@@ -477,7 +536,7 @@ new class extends Component
                 </div>
                 <div class="px-5 py-4" x-show="toolModal.result">
                     <p class="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Response</p>
-                    <pre class="text-xs text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words max-h-64" x-text="toolModal.result"></pre>
+                    <pre class="text-xs text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words" x-text="toolModal.result"></pre>
                 </div>
             </div>
         </div>

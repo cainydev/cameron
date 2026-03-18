@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Tools;
 
 use App\Ai\Attributes\Category;
+use App\Ai\Concerns\FormatsToolOutput;
 use App\Enums\ToolCategory;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -16,6 +17,8 @@ use Stringable;
 #[Category(ToolCategory::GoogleAds)]
 class GetKeywordPerformance extends AbstractAgentTool
 {
+    use FormatsToolOutput;
+
     protected bool $isReadOnly = true;
 
     /**
@@ -36,14 +39,14 @@ class GetKeywordPerformance extends AbstractAgentTool
 
     /**
      * @param  array{startDate: string, endDate: string, campaignId?: string, adGroupId?: string, limit?: int}  $arguments
-     * @return array<int, array{keywordText: string, matchType: int, adGroupName: string, clicks: int, impressions: int, costMicros: int, conversions: float, cpcBidMicros: int}>
+     * @return array<int, array{keyword: string, matchType: string, adGroup: string, clicks: int, impressions: int, cost: float, conversions: float, cpcBid: float}>
      */
     public function execute(array $arguments): array
     {
         $customerId = $this->shop?->google_ads_customer_id
             ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
 
-        $limit = $arguments['limit'] ?? 30;
+        $limit = $arguments['limit'] ?? 100;
 
         $whereClause = "WHERE segments.date BETWEEN '{$arguments['startDate']}' AND '{$arguments['endDate']}'";
 
@@ -76,14 +79,14 @@ class GetKeywordPerformance extends AbstractAgentTool
         foreach ($response->iterateAllElements() as $row) {
             $criterion = $row->getAdGroupCriterion();
             $results[] = [
-                'keywordText' => $criterion->getKeyword()->getText(),
-                'matchType' => $criterion->getKeyword()->getMatchType(),
-                'adGroupName' => $row->getAdGroup()->getName(),
+                'keyword' => $criterion->getKeyword()->getText(),
+                'matchType' => $this->matchTypeLabel($criterion->getKeyword()->getMatchType()),
+                'adGroup' => $row->getAdGroup()->getName(),
                 'clicks' => $row->getMetrics()->getClicks(),
                 'impressions' => $row->getMetrics()->getImpressions(),
-                'costMicros' => $row->getMetrics()->getCostMicros(),
-                'conversions' => $row->getMetrics()->getConversions(),
-                'cpcBidMicros' => $criterion->getCpcBidMicros(),
+                'cost' => $this->microsToCurrency($row->getMetrics()->getCostMicros()),
+                'conversions' => round($row->getMetrics()->getConversions(), 2),
+                'cpcBid' => $this->microsToCurrency($criterion->getCpcBidMicros()),
             ];
         }
 

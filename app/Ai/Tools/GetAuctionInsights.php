@@ -44,7 +44,7 @@ class GetAuctionInsights extends AbstractAgentTool
         $customerId = $this->shop?->google_ads_customer_id
             ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
 
-        $limit = $arguments['limit'] ?? 25;
+        $limit = $arguments['limit'] ?? 100;
 
         $whereClause = "WHERE segments.date BETWEEN '{$arguments['startDate']}' AND '{$arguments['endDate']}'";
 

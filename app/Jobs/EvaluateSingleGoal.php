@@ -107,6 +107,11 @@ class EvaluateSingleGoal implements ShouldQueue
             return false;
         }
 
+        // If the sensor returned a list of rows, use the first row for condition checks.
+        $metrics = array_is_list($sensorData) && isset($sensorData[0]) && is_array($sensorData[0])
+            ? $sensorData[0]
+            : $sensorData;
+
         foreach ($conditions as $condition) {
             $metric = $condition['metric'] ?? null;
             $operator = $condition['operator'] ?? null;
@@ -116,7 +121,7 @@ class EvaluateSingleGoal implements ShouldQueue
                 continue;
             }
 
-            $actual = $sensorData[$metric] ?? null;
+            $actual = $metrics[$metric] ?? null;
 
             if ($actual === null || ! $this->compareValues($actual, $operator, $threshold)) {
                 return false;
@@ -188,7 +193,11 @@ class EvaluateSingleGoal implements ShouldQueue
 
         Log::info("Spawned AgentTask [{$task->id}] for failed goal [{$this->goal->name}].");
 
-        RunTaskWorkerStep::dispatch($task);
+        if (config('cameron.use_multi_agent_pipeline')) {
+            CreatePlanForTask::dispatch($task);
+        } else {
+            RunTaskWorkerStep::dispatch($task);
+        }
     }
 
     /**

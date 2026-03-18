@@ -95,7 +95,7 @@ class GoogleApiService
     }
 
     /**
-     * Build an authenticated HTTP client pre-configured for the Merchant API v1beta.
+     * Build an authenticated HTTP client pre-configured for the Merchant API v1.
      */
     public function makeMerchantApiClient(): PendingRequest
     {

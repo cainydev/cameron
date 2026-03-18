@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Tools;
 
 use App\Ai\Attributes\Category;
+use App\Ai\Concerns\FormatsToolOutput;
 use App\Enums\ToolCategory;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Dimension;
@@ -21,6 +22,8 @@ use Stringable;
 #[Category(ToolCategory::GoogleAnalytics)]
 class GetGa4TrafficSources extends AbstractAgentTool
 {
+    use FormatsToolOutput;
+
     protected bool $isReadOnly = true;
 
     /**
@@ -86,8 +89,8 @@ class GetGa4TrafficSources extends AbstractAgentTool
 
             $rows[] = [
                 'channel' => $dimensions[0]->getValue(),
-                'sessions' => $metrics[0]->getValue(),
-                'engagementRate' => $metrics[1]->getValue(),
+                'sessions' => (int) $metrics[0]->getValue(),
+                'engagementRate' => $this->toPercent((float) $metrics[1]->getValue()),
             ];
         }
 

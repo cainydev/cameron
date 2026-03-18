@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a31121d3271f5373905e6326b6d3a70c",
+    "content-hash": "a7bda0287379f1a66f6f1aed36461649",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -8665,6 +8665,58 @@
                 "source": "https://github.com/tijsverkoyen/CssToInlineStyles/tree/v2.4.0"
             },
             "time": "2025-12-02T11:56:42+00:00"
+        },
+        {
+            "name": "vin-sw/shopware-sdk",
+            "version": "2.4.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/vienthuong/shopware-php-sdk.git",
+                "reference": "690fca073dc5f8c974aa1bd63bbd03b2f10fe6f4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/vienthuong/shopware-php-sdk/zipball/690fca073dc5f8c974aa1bd63bbd03b2f10fe6f4",
+                "reference": "690fca073dc5f8c974aa1bd63bbd03b2f10fe6f4",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^7.0",
+                "guzzlehttp/psr7": "^2.7",
+                "php": "^8.0 || ^8.1 || ^8.2 || ^8.3",
+                "psr/http-client": "^1.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "*",
+                "squizlabs/php_codesniffer": "3.*",
+                "symfony/var-dumper": "^5.3",
+                "symplify/config-transformer": "^9.3",
+                "symplify/easy-coding-standard": "9.3.20"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Vin\\ShopwareSdk\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "vin",
+                    "email": "levienthuong@gmail.com"
+                }
+            ],
+            "description": "A PHP SDK for Shopware 6 Platform",
+            "support": {
+                "issues": "https://github.com/vienthuong/shopware-php-sdk/issues",
+                "source": "https://github.com/vienthuong/shopware-php-sdk/tree/2.4.0"
+            },
+            "time": "2026-03-02T09:53:27+00:00"
         },
         {
             "name": "vlucas/phpdotenv",

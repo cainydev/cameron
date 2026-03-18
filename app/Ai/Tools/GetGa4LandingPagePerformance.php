@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Tools;
 
 use App\Ai\Attributes\Category;
+use App\Ai\Concerns\FormatsToolOutput;
 use App\Enums\ToolCategory;
 use Google\Analytics\Data\V1beta\DateRange;
 use Google\Analytics\Data\V1beta\Dimension;
@@ -21,6 +22,8 @@ use Stringable;
 #[Category(ToolCategory::GoogleAnalytics)]
 class GetGa4LandingPagePerformance extends AbstractAgentTool
 {
+    use FormatsToolOutput;
+
     protected bool $isReadOnly = true;
 
     /**
@@ -50,7 +53,7 @@ class GetGa4LandingPagePerformance extends AbstractAgentTool
         $propertyId = $this->shop?->ga4_property_id
             ?? throw new \RuntimeException('Shop has no GA4 property ID configured.');
 
-        $limit = $arguments['limit'] ?? 10;
+        $limit = $arguments['limit'] ?? 100;
 
         $service = $this->googleApiService();
         $client = $service->makeAnalyticsClient();
@@ -90,9 +93,9 @@ class GetGa4LandingPagePerformance extends AbstractAgentTool
 
             $rows[] = [
                 'landingPage' => $dimensions[0]->getValue(),
-                'sessions' => $metrics[0]->getValue(),
-                'bounceRate' => $metrics[1]->getValue(),
-                'engagementRate' => $metrics[2]->getValue(),
+                'sessions' => (int) $metrics[0]->getValue(),
+                'bounceRate' => $this->toPercent((float) $metrics[1]->getValue()),
+                'engagementRate' => $this->toPercent((float) $metrics[2]->getValue()),
             ];
         }
 

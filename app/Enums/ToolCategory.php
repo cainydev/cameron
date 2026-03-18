@@ -13,6 +13,7 @@ enum ToolCategory: string
     case AccountOverview = 'account_overview';
     case Goals = 'goals';
     case Memory = 'memory';
+    case Shopware = 'shopware';
     case System = 'system';
 
     public function label(): string
@@ -25,6 +26,7 @@ enum ToolCategory: string
             self::AccountOverview => 'Account Overview',
             self::Goals => 'Goals',
             self::Memory => 'Memory',
+            self::Shopware => 'Shopware',
             self::System => 'System',
         };
     }
@@ -39,6 +41,7 @@ enum ToolCategory: string
             self::AccountOverview => 'presentation-chart-bar',
             self::Goals => 'flag',
             self::Memory => 'light-bulb',
+            self::Shopware => 'shopping-bag',
             self::System => 'cog-6-tooth',
         };
     }
@@ -53,6 +56,7 @@ enum ToolCategory: string
             self::AccountOverview => 'purple',
             self::Goals => 'amber',
             self::Memory => 'pink',
+            self::Shopware => 'indigo',
             self::System => 'zinc',
         };
     }
@@ -75,6 +79,7 @@ enum ToolCategory: string
             self::GoogleAds => 'google_ads_customer_id',
             self::SearchConsole => 'search_console_url',
             self::Website => 'url',
+            self::Shopware => 'shopware_url',
             self::AccountOverview, self::Goals, self::Memory, self::System => null,
         };
     }

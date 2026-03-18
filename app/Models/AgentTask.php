@@ -23,6 +23,7 @@ class AgentTask extends Model
      */
     protected $fillable = [
         'goal_id',
+        'plan_id',
         'status',
         'context_payload',
         'locked_resource_id',
@@ -64,6 +65,14 @@ class AgentTask extends Model
     public function resourceLocks(): HasMany
     {
         return $this->hasMany(ResourceLock::class, 'task_id');
+    }
+
+    /**
+     * @return BelongsTo<AgentPlan, $this>
+     */
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(AgentPlan::class, 'plan_id');
     }
 
     /**

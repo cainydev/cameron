@@ -69,3 +69,9 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/* Allow sidebar chat items to truncate properly */
+[data-flux-sidebar-nav] ui-tooltip {
+    min-width: 0;
+    overflow: hidden;
+}

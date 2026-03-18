@@ -18,8 +18,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('shop/tools', 'pages::shop.tools')->name('shop.tools');
 
     Route::middleware(['shop.configured'])->group(function () {
-        Route::livewire('cameron', 'pages::cameron')->name('cameron');
+        Route::livewire('cameron/{conversation?}', 'pages::cameron')->name('cameron');
         Route::livewire('goals', 'pages::goals')->name('goals');
+        Route::livewire('goals/{goal}', 'pages::goal')->name('goal');
         Route::livewire('agents/{agent}', 'pages::agent')->name('agent');
     });
 });

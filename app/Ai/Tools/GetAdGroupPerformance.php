@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Tools;
 
 use App\Ai\Attributes\Category;
+use App\Ai\Concerns\FormatsToolOutput;
 use App\Enums\ToolCategory;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -16,6 +17,8 @@ use Stringable;
 #[Category(ToolCategory::GoogleAds)]
 class GetAdGroupPerformance extends AbstractAgentTool
 {
+    use FormatsToolOutput;
+
     protected bool $isReadOnly = true;
 
     /**
@@ -36,14 +39,14 @@ class GetAdGroupPerformance extends AbstractAgentTool
 
     /**
      * @param  array{startDate: string, endDate: string, campaignId?: string, limit?: int}  $arguments
-     * @return array<int, array{adGroupId: string, adGroupName: string, campaignName: string, clicks: int, impressions: int, costMicros: int, conversions: float}>
+     * @return array<int, array{adGroupId: string, adGroupName: string, campaignName: string, clicks: int, impressions: int, cost: float, conversions: float}>
      */
     public function execute(array $arguments): array
     {
         $customerId = $this->shop?->google_ads_customer_id
             ?? throw new \RuntimeException('Shop has no Google Ads customer ID configured.');
 
-        $limit = $arguments['limit'] ?? 20;
+        $limit = $arguments['limit'] ?? 100;
 
         $whereClause = "WHERE segments.date BETWEEN '{$arguments['startDate']}' AND '{$arguments['endDate']}'";
 
@@ -75,8 +78,8 @@ class GetAdGroupPerformance extends AbstractAgentTool
                 'campaignName' => $row->getCampaign()->getName(),
                 'clicks' => $row->getMetrics()->getClicks(),
                 'impressions' => $row->getMetrics()->getImpressions(),
-                'costMicros' => $row->getMetrics()->getCostMicros(),
-                'conversions' => $row->getMetrics()->getConversions(),
+                'cost' => $this->microsToCurrency($row->getMetrics()->getCostMicros()),
+                'conversions' => round($row->getMetrics()->getConversions(), 2),
             ];
         }
 

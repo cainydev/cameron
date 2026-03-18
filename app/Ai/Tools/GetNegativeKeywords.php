@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Tools;
 
 use App\Ai\Attributes\Category;
+use App\Ai\Concerns\FormatsToolOutput;
 use App\Enums\ToolCategory;
 use Google\Ads\GoogleAds\V20\Services\SearchGoogleAdsRequest;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -16,6 +17,8 @@ use Stringable;
 #[Category(ToolCategory::GoogleAds)]
 class GetNegativeKeywords extends AbstractAgentTool
 {
+    use FormatsToolOutput;
+
     protected bool $isReadOnly = true;
 
     /**
@@ -69,8 +72,8 @@ class GetNegativeKeywords extends AbstractAgentTool
         foreach ($response->iterateAllElements() as $row) {
             $keyword = $row->getCampaignCriterion()->getKeyword();
             $results[] = [
-                'keywordText' => $keyword->getText(),
-                'matchType' => $keyword->getMatchType(),
+                'keyword' => $keyword->getText(),
+                'matchType' => $this->matchTypeLabel($keyword->getMatchType()),
             ];
         }
 
